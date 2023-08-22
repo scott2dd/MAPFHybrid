@@ -1,4 +1,4 @@
-module MultiAgentPathFinding
+module MAPFHybrid
 
 # stdlib
 using Random
