@@ -1,4 +1,4 @@
-name = "MultiAgentPathFinding"
+name = "MAPFHybrid"
 uuid = "42a2a06c-b1c1-11e9-17d7-43429d2d2199"
 authors = ["Shushman <shushmanchoudhury@gmail.com>"]
 version = "0.1.0"
