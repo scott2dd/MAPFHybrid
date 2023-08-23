@@ -27,7 +27,7 @@ DataStructures.compare(comp::CompareFocalHeuristic, n1::ECBSHighLevelNode, n2::E
     env::E
     hlcost::HC                                                                      = HC()
     weight::Float64                                                                 = 1.0
-    heap::MutableBinaryMinHeap{ECBSHighLevelNode{S,A,C,CNR}}                            = MutableBinaryMinHeap{ECBSHighLevelNode{S,A,C,CNR}}()
+    heap::MutableBinaryMinHeap{ECBSHighLevelNode{S,A,C,CNR}}                        = MutableBinaryMinHeap{ECBSHighLevelNode{S,A,C,CNR}}()
     hmap::Dict{Int,Int}                                                             = Dict{Int,Int}()
     focal_heap::MutableBinaryHeap{ECBSHighLevelNode{S,A,C,CNR},CompareFocalHeuristic}   = MutableBinaryHeap{ECBSHighLevelNode{S,A,C,CNR},CompareFocalHeuristic}()
     focal_hmap::Dict{Int,Int}                                                       = Dict{Int,Int}()

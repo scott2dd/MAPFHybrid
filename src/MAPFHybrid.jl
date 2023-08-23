@@ -41,6 +41,17 @@ Abstract base type for the environment in a MAPF problem.
 """
 abstract type MAPFEnvironment end
 
+
+include("utils.jl")
+include("high_level_cost.jl")
+include("cbs.jl")
+# include("ecbs.jl")
+include("domains/grid2d/types.jl")
+# include("domains/grid2d/cbs_grid2d.jl")
+# include("domains/grid2d/ecbs_grid2d.jl")
+# include("domains/grid2d/a_star_epsilon_grid2d.jl")
+include("domains/hybrid/types_hybrid.jl")
+include("domains/hybrid/cbs_hybrid.jl")
 # Types
 export
     MAPFState,
@@ -76,26 +87,28 @@ export
     low_level_search!,
     CBSSolver,
     search!,
-    focal_heuristic,
-    ECBSSolver
+    focal_heuristic
+    # ECBSSolver
+
+# Hybrid Types
+export
+    HybridState,
+    HybridAction,
+    HybridConflict,
+    HybridConstraints,
+    HybridEnvironment,
+    HyrbidLocation,
 
 # Grid 2D Types
-export
-    Grid2DState,
-    Grid2DAction,
-    Grid2DConflict,
-    Grid2DConstraints,
-    Grid2DEnvironment,
-    Grid2DLocation,
-    AStarGrid2DEnvironment
+# export
+    # Grid2DState,
+    # Grid2DAction,
+    # Grid2DConflict,
+    # Grid2DConstraints,
+    # Grid2DEnvironment,
+    # Grid2DLocation,
+    # AStarGrid2DEnvironment
 
-include("utils.jl")
-include("high_level_cost.jl")
-include("cbs.jl")
-include("ecbs.jl")
-include("domains/grid2d/types.jl")
-include("domains/grid2d/cbs_grid2d.jl")
-include("domains/grid2d/ecbs_grid2d.jl")
-include("domains/grid2d/a_star_epsilon_grid2d.jl")
+
 
 end # module
