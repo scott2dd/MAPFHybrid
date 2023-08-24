@@ -40,7 +40,7 @@ function set_low_level_context!(env::HybridEnvironment, agent_idx::Int64, constr
     env.agent_idx = agent_idx
 
     for vc in constraints.vertex_constraints
-        if (vc.nodeIdx == env.goals[agent_idx]
+        if (vc.nodeIdx == env.goals[agent_idx])
             env.last_goal_constraint = max(env.last_goal_constraint, vc.time)
         end
     end
@@ -118,7 +118,7 @@ function get_first_conflict(env::HybridEnvironment, solution::Vector{PlanResult{
 
                 if equal_except_time(state1, state2)
                     return HybridConflict(time=rel_time, agent_1=i, agent_2=j,
-                                    type=Vertex::ConflictType, nodeIdx1 = state1.nodeIdx))
+                                    type=Vertex::ConflictType, nodeIdx1 = state1.nodeIdx)
                 end
             end
         end
@@ -215,7 +215,7 @@ end
 #     constraints::HybridConstraints
 # end
 
-function Graphs.include_vertex!(env::HybridEnvironment, u::HybridState, v::HybridState, d::N, nbrs::Vector{Int64}) where {N <: Number}
+function include_vertex!(env::HybridEnvironment, u::HybridState, v::HybridState, d::N, nbrs::Vector{Int64}) where {N <: Number}
 
     if is_solution(env, v)
         # @info "Found low-level solution!"

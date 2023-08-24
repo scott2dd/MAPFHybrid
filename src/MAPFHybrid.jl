@@ -7,6 +7,7 @@ using DataStructures
 # others
 using Parameters
 using Graphs
+using SimpleWeightedGraphs
 
 
 
@@ -46,7 +47,7 @@ include("utils.jl")
 include("high_level_cost.jl")
 include("cbs.jl")
 # include("ecbs.jl")
-include("domains/grid2d/types.jl")
+# include("domains/grid2d/types.jl")
 # include("domains/grid2d/cbs_grid2d.jl")
 # include("domains/grid2d/ecbs_grid2d.jl")
 # include("domains/grid2d/a_star_epsilon_grid2d.jl")
@@ -97,7 +98,7 @@ export
     HybridConflict,
     HybridConstraints,
     HybridEnvironment,
-    HyrbidLocation,
+    HyrbidLocation
 
 # Grid 2D Types
 # export

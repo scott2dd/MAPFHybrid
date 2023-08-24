@@ -1,4 +1,8 @@
 #was grid 2D.. we are now switching to our EucInt type to run on our problems...
+using Parameters
+
+const HybridLocation = NamedTuple{(:nodeIdx,),Tuple{Int64}}
+
 @with_kw struct HybridState <: MAPFState
     time::Int64
     nodeIdx::Int64
@@ -17,7 +21,7 @@ end
     nNodes::Int64
     obstacles::Set{HybridLocation}
     goals::Vector{Int64} #vector of node Idxs
-    state_graph::SimpleWeightedDiGraph{HybridState}    = SimpleWeightedDiGraph{HybridState}()
+    state_graph::SimpleWeightedDiGraph{Int64}    = SimpleWeightedDiGraph{Int64}()
     state_to_idx::Dict{HybridState,Int64}         = Dict{HybridState,Int64}()
     last_goal_constraint::Int64             = -1
     agent_idx::Int64                        = 0
@@ -72,4 +76,4 @@ get_empty_constraint(::Type{HybridConstraints}) = HybridConstraints()
 
 Base.isempty(constraints::HybridConstraints) = (isempty(constraints.vertex_constraints) && isempty(constraints.edge_constraints))
 
-const HybridLocation = Int64
+

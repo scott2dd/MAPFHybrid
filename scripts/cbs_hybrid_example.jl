@@ -1,7 +1,9 @@
 import JSON
-using MultiAgentPathFinding
+using HybridUAVPlanning
 using Graphs
-function main(euc_inst::EucGraphInt, starts::Vector{Int64}, goals::Vector{Int64}, hlcost::String = "SOC")
+using MAPFHybrid
+
+function CBS_hybrid_wrapper(euc_inst::EucGraphInt, starts::Vector{Int64}, goals::Vector{Int64}, hlcost::String = "SOC")
 
     initial_states = Vector{HybridState}(undef, 0)
     
@@ -12,17 +14,17 @@ function main(euc_inst::EucGraphInt, starts::Vector{Int64}, goals::Vector{Int64}
     ## TODO: Definitely a better way to do this....
     hlcost = "SOC"
     if hlcost == "SOC"
-        solver = CBSSolver{Grid2DState,Grid2DAction,Int64,SumOfCosts,Grid2DConflict,Grid2DConstraints,Grid2DEnvironment}(env=env)
+        solver = CBSSolver{HybridState,HybridAction,Int64,SumOfCosts,HybridConflict,HybridConstraints,HybridEnvironment}(env=env)
     elseif hlcost == "MS"
-        solver = CBSSolver{Grid2DState,Grid2DAction,Int64,Makespan,Grid2DConflict,Grid2DConstraints,Grid2DEnvironment}(env=env)
+        solver = CBSSolver{HybridState,HybridAction,Int64,Makespan,HybridConflict,HybridConstraints,HybridEnvironment}(env=env)
     else
-        println("Please enter either SOC or MS for high level cost")
+        println("Enter either SOC or MS for high level cost")
     end
 
     @time solution = search!(solver, initial_states)
 
     if isempty(solution)
-        println("Planning not successful!")
+        println("Solution Empty from CBS")
     else
         cost = 0
         makespan = 0
@@ -31,7 +33,7 @@ function main(euc_inst::EucGraphInt, starts::Vector{Int64}, goals::Vector{Int64}
             makespan = max(s.cost, makespan)
         end
 
-        println("Statistics :")
+        printstyled("CBS Statistics:\n", bold=true, color=:lightblue)
         println("Cost: ", cost)
         println("Makespan: ", makespan)
 
@@ -55,3 +57,12 @@ function main(euc_inst::EucGraphInt, starts::Vector{Int64}, goals::Vector{Int64}
         JSON.print(f, result_dict, 2)
     end
 end
+
+using JLD2
+using HybridUAVPlanning
+using Random
+@load "Problems/euc_probs_disc/50_4conn_1"
+nNodes = size(euc_inst.C,1)
+starts, goals = randperm(nNodes)[1:3], randperm(nNodes)[1:3]
+
+CBS_hybrid_wrapper(euc_inst, starts, goals)
