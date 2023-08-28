@@ -89,7 +89,7 @@ function reconstruct_path(parents::Dict{Int64,Int64}, curr_idx::Int64, stateidx_
     end
     return path
 end
-function a_star_implicit_shortest_path!(graph::SimpleWeightedDiGraph{Int64}, env::HybridEnvironment, state::HybridState, uavi::Int64)
+function a_star_implicit_shortest_path!(graph::SimpleWeightedDiGraph{Int64}, env::HybridEnvironment, state::HybridState, uavi::Int64, constraints::HybridConstraints)
     goal = env.goals[uavi]
     state_to_idx = deepcopy(env.state_to_idx)
     parents = Dict{Int64,Int64}() #state_idx to state_idx
@@ -126,6 +126,14 @@ function a_star_implicit_shortest_path!(graph::SimpleWeightedDiGraph{Int64}, env
         for raw_nbr in neighbors(graph, node_idx)
             newstate = HybridState(time=state.time+1, nodeIdx=raw_nbr, g = 0, b = 0)
             nbr_node_idx = newstate.nodeIdx
+
+            #check if we are on a vertex constraint
+            if VertexConstraint(time=newstate.time, nodeIdx=newstate.nodeIdx) in constraints.vertex_constraints
+                continue
+            elseif EdgeConstraint(time=newstate.time, nodeIdx1=node_idx, nodeIdx2=nbr_node_idx) in constraints.edge_constraints || EdgeConstraint(time=newstate.time, nodeIdx1=nbr_node_idx, nodeIdx2= node_idx) in constraints.edge_constraints #if we are  on a edge constraint...
+                continue
+            end
+
             if haskey(state_to_idx, newstate)
                 nbr_idx = state_to_idx[newstate]
             else

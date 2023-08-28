@@ -196,12 +196,9 @@ function low_level_search!(solver::CBSSolver, agent_idx::Int64, s::HybridState, 
     # vis = CBSGoalVisitorImplicit(env, constraints)
     vis = nothing
     #NEED TO:
-    
-    a_star_states =  a_star_implicit_shortest_path!(env.state_graph, edge_wt_fn,
-                                                    idx, vis,
-                                                    heuristic, Int64)
+    path_out, cost =  a_star_implicit_shortest_path!(env.graph, env, s, agent_idx, constraints)
 
-    plan_result = get_plan_result_from_astar(env, a_star_states.dists, a_star_states.parent_indices, idx, env.curr_goal_idx, 0)
+    plan_result = astar_get_plan(env, path_out, s, agent_idx)
 
     # Return empty solution
     if plan_result == nothing
@@ -211,6 +208,11 @@ function low_level_search!(solver::CBSSolver, agent_idx::Int64, s::HybridState, 
     return plan_result
 end
 
+function astar_get_plan(env, path_out, initstate)
+
+
+
+end
 
 # mutable struct CBSGoalVisitorImplicit <: AbstractDijkstraVisitor
 #     env::HybridEnvironment
