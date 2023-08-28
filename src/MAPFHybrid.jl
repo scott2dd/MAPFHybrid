@@ -88,7 +88,8 @@ export
     low_level_search!,
     CBSSolver,
     search!,
-    focal_heuristic
+    focal_heuristic,
+    a_star_implicit_shortest_path!
     # ECBSSolver
 
 # Hybrid Types
@@ -98,7 +99,7 @@ export
     HybridConflict,
     HybridConstraints,
     HybridEnvironment,
-    HyrbidLocation
+    HybridLocation
 
 # Grid 2D Types
 # export

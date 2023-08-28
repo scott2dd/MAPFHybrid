@@ -88,7 +88,7 @@ function transition_valid(env::HybridEnvironment, constraints::HybridConstraints
 end
 
 function get_env_state_idx!(env::HybridEnvironment, s::HybridState)
-
+    return s.nodeIdx
     idx = get(env.state_to_idx, s, 0)
 
     if idx == 0
@@ -174,7 +174,6 @@ function create_constraints_from_conflict(env::HybridEnvironment, conflict::Hybr
 end
 
 
-
 function low_level_search!(solver::CBSSolver, agent_idx::Int64, s::HybridState, constraints::HybridConstraints)
 
     env = solver.env
@@ -194,7 +193,10 @@ function low_level_search!(solver::CBSSolver, agent_idx::Int64, s::HybridState, 
 
     # Run the search
     # @info "RUNNING SEARCH!"
-    vis = CBSGoalVisitorImplicit(env, constraints)
+    # vis = CBSGoalVisitorImplicit(env, constraints)
+    vis = nothing
+    #NEED TO:
+    
     a_star_states =  a_star_implicit_shortest_path!(env.state_graph, edge_wt_fn,
                                                     idx, vis,
                                                     heuristic, Int64)
@@ -248,3 +250,5 @@ function include_vertex!(env::HybridEnvironment, u::HybridState, v::HybridState,
     # @show nbrs
     return true
 end
+
+

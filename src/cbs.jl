@@ -93,8 +93,8 @@ function search!(solver::CBSSolver{S,A,C,HC,F,CNR,E}, initial_states::Vector{S})
         set_low_level_context!(solver.env, idx, start.constraints[idx])
 
         # Calls get_plan_result_from_astar within
-        new_solution = low_level_search!(solver, idx, initial_states[idx], start.constraints[idx])
-
+         new_solution = low_level_search!(solver, idx, initial_states[idx], start.constraints[idx])
+        println("new solution for $(idx): ", new_solution)
         # Return empty solution if cannot find
         if isempty(new_solution)
             return Vector{PlanResult{S,A,C}}(undef, 0)
@@ -104,7 +104,9 @@ function search!(solver::CBSSolver{S,A,C,HC,F,CNR,E}, initial_states::Vector{S})
     end
 
     # readline()
-    # Insert start to heap
+    # println("Solutions: $(start.solution)")
+    println("computing cost...")
+    
     start.cost = compute_cost(solver.hlcost, start.solution)
     push!(solver.heap, start)
 
