@@ -22,9 +22,10 @@ end
     obstacles::Vector{HybridLocation}
     locs::Matrix{Float64}
     goals::Vector{Int64} #vector of node Idxs
-    orig_graph::SimpleWeightedDiGraph{Int64}    = SimpleWeightedDiGraph()
-    state_graph::SimpleWeightedDiGraph{Int64}    = SimpleWeightedDiGraph()
+    orig_graph::SimpleWeightedDiGraph{Int64,Float64}    = SimpleWeightedDiGraph()
+    state_graph::SimpleWeightedDiGraph{Int64, Float64}    = SimpleWeightedDiGraph()
     state_to_idx::Dict{HybridState,Int64} = Dict{HybridState,Int64}()
+    idx_to_state::Dict{Int64,HybridState} = Dict{Int64,HybridState}() #for reverse lookup
     last_goal_constraint::Int64             = -1
     agent_idx::Int64                        = 0
     curr_goal_idx::Int64                    = 0
@@ -77,31 +78,51 @@ get_empty_constraint(::Type{HybridConstraints}) = HybridConstraints()
 Base.isempty(constraints::HybridConstraints) = (isempty(constraints.vertex_constraints) && isempty(constraints.edge_constraints))
 
 
-function reconstruct_path(parents::Dict{Int64,Int64}, curr_idx::Int64, stateidx_to_nodeidx::Dict{Int64,Int64})
+function reconstruct_path(parents::Dict{Int64,Int64}, curr_idx::Int64, stateidx_to_nodeidx::Dict{Int64,Int64}, idx_to_state::Dict{Int64,HybridState}, graph::SimpleWeightedDiGraph{Int64, Float64}, totalcost::Float64)
     #parents is stateidx to stateidx
+    running_cost = totalcost + 0.0
     curr_node_idx = stateidx_to_nodeidx[curr_idx]
-    path = [curr_node_idx]
+    # path = [curr_node_idx]
+    stateseq = Tuple{HybridState, Float64}[]
+    pushfirst!(stateseq, (idx_to_state[curr_idx], running_cost))
+    
+    actions = Tuple{HybridAction, Float64}[]
+    wij = get_weight(graph, parents[curr_idx], curr_idx)
+    pushfirst!(actions, (HybridAction(Move, curr_idx), wij))
+    running_cost -= wij
     while haskey(parents, curr_idx)
         curr_idx = parents[curr_idx]
         curr_node_idx = stateidx_to_nodeidx[curr_idx]
-        pushfirst!(path, curr_node_idx)
-        
+        state = idx_to_state[curr_idx]
+        pushfirst!(stateseq, (state, running_cost))
+
+        if haskey(parents, curr_idx)
+            wij = get_weight(graph, parents[curr_idx], curr_idx)
+            running_cost -= wij
+            pushfirst!(actions, (HybridAction(Move, curr_idx), wij))
+            running_cost -= wij
+        end
     end
-    return path
+
+    
+    return stateseq, actions
 end
 function a_star_implicit_shortest_path!(graph::SimpleWeightedDiGraph{Int64}, env::HybridEnvironment, state::HybridState, uavi::Int64, constraints::HybridConstraints)
     goal = env.goals[uavi]
     state_to_idx = deepcopy(env.state_to_idx)
+    idx_to_state = deepcopy(env.idx_to_state)
     parents = Dict{Int64,Int64}() #state_idx to state_idx
     stateidx_to_nodeidx = Dict{Int64,Int64}() #state_idx to node_idx
     gscores = Dict{Int64,Float64}() #keep a list of gscores
-
+    fmin = Inf
     if haskey(state_to_idx, state)
         curr_idx = state_to_idx[state]
+        
     else
         state_to_idx[state] = length(state_to_idx) + 1
         curr_idx = state_to_idx[state]
         stateidx_to_nodeidx[curr_idx] = state.nodeIdx
+        idx_to_state[curr_idx] = state
     end
     node_idx = state.nodeIdx
 
@@ -115,12 +136,16 @@ function a_star_implicit_shortest_path!(graph::SimpleWeightedDiGraph{Int64}, env
         curr = pop!(openlist) #curr gives us state_graph idx
         curr_idx, state, gval = curr[2], curr[3], curr[4]
         node_idx = state.nodeIdx
-        if node_idx == goal
-            path_nodes = reconstruct_path(parents, curr_idx, stateidx_to_nodeidx)
-            cost = gscores[curr_idx]
-            return path_nodes, cost
-        end
+        f = curr[1]
+        fmin = min(f, fmin)
 
+        if node_idx == goal
+            cost = gscores[curr_idx]
+            state_seq, actions = reconstruct_path(parents, curr_idx, stateidx_to_nodeidx, idx_to_state, graph,cost)
+            plan = PlanResult(states=state_seq, actions=actions, cost=cost, fmin=fmin)
+            return plan
+        end
+        
         #otherwise, expand this node and add each to open list
         
         for raw_nbr in neighbors(graph, node_idx)
@@ -140,6 +165,7 @@ function a_star_implicit_shortest_path!(graph::SimpleWeightedDiGraph{Int64}, env
                 state_to_idx[newstate] = length(state_to_idx) + 1
                 nbr_idx = state_to_idx[newstate]
                 stateidx_to_nodeidx[nbr_idx] = nbr_node_idx
+                idx_to_state[nbr_idx] = newstate
             end
             
             wij = get_weight(graph, node_idx, nbr_node_idx)
