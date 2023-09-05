@@ -93,8 +93,8 @@ function search!(solver::CBSSolver{S,A,C,HC,F,CNR,E}, initial_states::Vector{S})
         set_low_level_context!(solver.env, idx, start.constraints[idx])
 
         # Calls get_plan_result_from_astar within
-         new_solution = low_level_search!(solver, idx, initial_states[idx], start.constraints[idx])
-        println("new solution for $(idx): ", new_solution)
+        new_solution = low_level_search!(solver, idx, initial_states[idx], start.constraints[idx])
+        # println("new solution for $(idx): ", new_solution)
         # Return empty solution if cannot find
         if isempty(new_solution)
             return Vector{PlanResult{S,A,C}}(undef, 0)
@@ -103,31 +103,24 @@ function search!(solver::CBSSolver{S,A,C,HC,F,CNR,E}, initial_states::Vector{S})
         start.solution[idx] = new_solution
     end
 
-    # readline()
-    # println("Solutions: $(start.solution)")
-    println("computing cost...")
-    
     start.cost = compute_cost(solver.hlcost, start.solution)
     push!(solver.heap, start)
 
     id = 1
 
     while ~(isempty(solver.heap))
-
         P = pop!(solver.heap)
 
         conflict = get_first_conflict(solver.env, P.solution)
-
         # If no conflict, we are done
         if conflict == nothing
             @info "SOLVED! Cost: ",P.cost
             # IMP - One or more solutions might be empty - need to check at higher level
-            return P.solution
+            return P
         end
 
         # Create additional nodes to resolve conflict (which is not nothing)
         constraints = create_constraints_from_conflict(solver.env, conflict)
-
         for constraint in constraints
             for (i, c) in constraint
 
@@ -164,3 +157,5 @@ function search!(solver::CBSSolver{S,A,C,HC,F,CNR,E}, initial_states::Vector{S})
     return Vector{PlanResult{S,A,C}}(undef, 0)
 
 end
+
+##

@@ -118,7 +118,7 @@ function get_first_conflict(env::HybridEnvironment, solution::Vector{PlanResult{
 
                 if equal_except_time(state1, state2)
                     return HybridConflict(time=rel_time, agent_1=i, agent_2=j,
-                                    type=Vertex::ConflictType, nodeIdx1 = state1.nodeIdx)
+                                    type=Vertex::ConflictType, nodeIdx1 = state1.nodeIdx, nodeIdx2 = -99)
                 end
             end
         end
@@ -135,7 +135,7 @@ function get_first_conflict(env::HybridEnvironment, solution::Vector{PlanResult{
                 if equal_except_time(state1a, state2b) &&
                     equal_except_time(state1b, state2a)
 
-                    return Grid2DConflict(time=rel_time, agent_1=i, agent_2=j, type=Edge::ConflictType, nodeIdx1 = state1a.nodeIdx, nodeIdx2 = state1b.nodeIdx)
+                    return HybridConflict(time=rel_time, agent_1=i, agent_2=j, type=Edge::ConflictType, nodeIdx1 = state1a.nodeIdx, nodeIdx2 = state1b.nodeIdx)
                 end
             end
         end
@@ -175,7 +175,6 @@ end
 
 
 function low_level_search!(solver::CBSSolver, agent_idx::Int64, s::HybridState, constraints::HybridConstraints)
-
     env = solver.env
 
     # Reset env index
@@ -196,8 +195,8 @@ function low_level_search!(solver::CBSSolver, agent_idx::Int64, s::HybridState, 
     # vis = CBSGoalVisitorImplicit(env, constraints)
     vis = nothing
     #NEED TO:
-    path_out, state_seq, cost, fmin, cum_cost, ind_cost =  a_star_implicit_shortest_path!(env.graph, env, s, agent_idx, constraints)
-    plan_result = astar_get_plan(env, pathout, state_seq, cost, fmin, cum_cost, ind_cost)
+    plan_result =  a_star_implicit_shortest_path!(env.orig_graph, env, s, agent_idx, constraints)
+    # plan_result = astar_get_plan(env, pathout, state_seq, cost, fmin, cum_cost, ind_cost)
 
     # Return empty solution
     if plan_result == nothing
@@ -205,17 +204,6 @@ function low_level_search!(solver::CBSSolver, agent_idx::Int64, s::HybridState, 
     end
 
     return plan_result
-end
-
-# PlanResult: states, actions, cost, fmin #fmin is minimum f 
-
-function astar_get_plan(env, path, state_seq, cost, fmin, cumulative_cost, individual_cost)
-    
-    
-
-    
-    return plan
-
 end
 
 # mutable struct CBSGoalVisitorImplicit <: AbstractDijkstraVisitor

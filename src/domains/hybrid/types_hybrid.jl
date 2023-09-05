@@ -78,16 +78,17 @@ get_empty_constraint(::Type{HybridConstraints}) = HybridConstraints()
 Base.isempty(constraints::HybridConstraints) = (isempty(constraints.vertex_constraints) && isempty(constraints.edge_constraints))
 
 
-function reconstruct_path(parents::Dict{Int64,Int64}, curr_idx::Int64, stateidx_to_nodeidx::Dict{Int64,Int64}, idx_to_state::Dict{Int64,HybridState}, graph::SimpleWeightedDiGraph{Int64, Float64}, totalcost::Float64)
+function reconstruct_path(parents::Dict{Int64,Int64}, curr_idx::Int64, stateidx_to_nodeidx::Dict{Int64,Int64}, idx_to_state::Dict{Int64,HybridState}, graph::SimpleWeightedDiGraph{Int64, Float64}, totalcost::Int64)
     #parents is stateidx to stateidx
-    running_cost = totalcost + 0.0
+    running_cost = totalcost + 0
     curr_node_idx = stateidx_to_nodeidx[curr_idx]
     # path = [curr_node_idx]
-    stateseq = Tuple{HybridState, Float64}[]
+    stateseq = Tuple{HybridState, Int64}[]
     pushfirst!(stateseq, (idx_to_state[curr_idx], running_cost))
     
-    actions = Tuple{HybridAction, Float64}[]
-    wij = get_weight(graph, parents[curr_idx], curr_idx)
+    actions = Tuple{HybridAction, Int64}[]
+    next_node = stateidx_to_nodeidx[parents[curr_idx]]
+    wij = get_weight(graph, next_node, curr_node_idx)
     pushfirst!(actions, (HybridAction(Move, curr_idx), wij))
     running_cost -= wij
     while haskey(parents, curr_idx)
@@ -97,9 +98,14 @@ function reconstruct_path(parents::Dict{Int64,Int64}, curr_idx::Int64, stateidx_
         pushfirst!(stateseq, (state, running_cost))
 
         if haskey(parents, curr_idx)
-            wij = get_weight(graph, parents[curr_idx], curr_idx)
+            next_node = stateidx_to_nodeidx[parents[curr_idx]]
+            wij = get_weight(graph, next_node, curr_node_idx)
             running_cost -= wij
-            pushfirst!(actions, (HybridAction(Move, curr_idx), wij))
+            if wij == 0 #if it was a wait action
+                pushfirst!(actions, (HybridAction(Wait, 0), wij))
+            else
+                pushfirst!(actions, (HybridAction(Move, curr_idx), wij))
+            end
             running_cost -= wij
         end
     end
@@ -138,24 +144,24 @@ function a_star_implicit_shortest_path!(graph::SimpleWeightedDiGraph{Int64}, env
         node_idx = state.nodeIdx
         f = curr[1]
         fmin = min(f, fmin)
-
+        # println(node_idx)
         if node_idx == goal
             cost = gscores[curr_idx]
-            state_seq, actions = reconstruct_path(parents, curr_idx, stateidx_to_nodeidx, idx_to_state, graph,cost)
-            plan = PlanResult(states=state_seq, actions=actions, cost=cost, fmin=fmin)
+            state_seq, actions = reconstruct_path(parents, curr_idx, stateidx_to_nodeidx, idx_to_state, graph,Int(cost))
+            plan = PlanResult(states=state_seq, actions=actions, cost=Int(floor(cost)), fmin=Int(floor(fmin)))
             return plan
         end
         
         #otherwise, expand this node and add each to open list
         
-        for raw_nbr in neighbors(graph, node_idx)
+        for raw_nbr in neighbors(graph, node_idx) #; node_idx]
             newstate = HybridState(time=state.time+1, nodeIdx=raw_nbr, g = 0, b = 0)
             nbr_node_idx = newstate.nodeIdx
-
+            # println("neighbor: ", raw_nbr)
             #check if we are on a vertex constraint
             if VertexConstraint(time=newstate.time, nodeIdx=newstate.nodeIdx) in constraints.vertex_constraints
                 continue
-            elseif EdgeConstraint(time=newstate.time, nodeIdx1=node_idx, nodeIdx2=nbr_node_idx) in constraints.edge_constraints || EdgeConstraint(time=newstate.time, nodeIdx1=nbr_node_idx, nodeIdx2= node_idx) in constraints.edge_constraints #if we are  on a edge constraint...
+            elseif EdgeConstraint(time=newstate.time-1, nodeIdx1=node_idx, nodeIdx2=nbr_node_idx) in constraints.edge_constraints || EdgeConstraint(time=newstate.time-1, nodeIdx1=nbr_node_idx, nodeIdx2= node_idx) in constraints.edge_constraints #if we are  on a edge constraint...
                 continue
             end
 
@@ -169,6 +175,9 @@ function a_star_implicit_shortest_path!(graph::SimpleWeightedDiGraph{Int64}, env
             end
             
             wij = get_weight(graph, node_idx, nbr_node_idx)
+            if wij == 0
+                wij = 0.0001
+            end
             nbr_gval = gval + wij
             fval = nbr_gval + heur(nbr_node_idx)
 
@@ -180,7 +189,9 @@ function a_star_implicit_shortest_path!(graph::SimpleWeightedDiGraph{Int64}, env
             parents[nbr_idx] = curr_idx
             gscores[nbr_idx] = nbr_gval
         end
+
+        #now also do neighbor!
     end
-    return [], 0.0  #if open list empty, then no path found...
+    return nothing  #if open list empty, then no path found...
 end
 
