@@ -29,6 +29,7 @@ end
     last_goal_constraint::Int64             = -1
     agent_idx::Int64                        = 0
     curr_goal_idx::Int64                    = 0
+    euc_inst::EucGraphInt  #euc graph.  Just pass whole thing, by reference this is fine.  
 end
 
 @enum Action Move=1 Wait=2 
@@ -155,7 +156,9 @@ function a_star_implicit_shortest_path!(graph::SimpleWeightedDiGraph{Int64}, env
         #otherwise, expand this node and add each to open list
         
         for raw_nbr in neighbors(graph, node_idx) #; node_idx]
-            newstate = HybridState(time=state.time+1, nodeIdx=raw_nbr, g = 0, b = 0)
+            bold, gold = state.b, state.g
+            bij, gij = euc_inst.C[node_idx, raw_nbr], euc_inst.Z[node_idx, raw_nbr]
+            newstate = HybridState(time=state.time+1, nodeIdx=raw_nbr, b = bold+ bij, g = gold + gij)
             nbr_node_idx = newstate.nodeIdx
             # println("neighbor: ", raw_nbr)
             #check if we are on a vertex constraint
