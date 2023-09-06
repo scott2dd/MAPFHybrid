@@ -4,8 +4,13 @@
     agent_idx 
     removed heur input, assume we are always doing astar (for MAPF we definitely want this!)
 """
-function hybrid_label_temporal(def::EucGraphInt, constraints::HybridConstraints, agent_idx::Int64, start::Int64, goal::Int64, Bstart::Int64 = 0, Gstart::Int64 = 0) 
+
+function get_state_path(pathL::Vector{Int64}, init_state::HybridState)
+
+end
+function hybrid_label_temporal(env::HybridEnvironment, constraints::HybridConstraints, agent_idx::Int64, state::HybridState, goal::Int64, Bstart::Int64 = 0, Gstart::Int64 = 0) 
     #proc EucgraphInst
+    def = env.euc_inst
     Alist, F, C, Z = def.Alist, def.F, def.C, def.Z
     Cmin = minimum(nonzeros(C)) 
     Bstart = Int(floor(5*mean(nonzeros(C))))
@@ -14,6 +19,7 @@ function hybrid_label_temporal(def::EucGraphInt, constraints::HybridConstraints,
     SC = 0
     locs = def.locs
     
+    start = state.
     N = length(Alist)
     graph = make_graph(def)
     Fvec = fill(2^63 - 1, N)
