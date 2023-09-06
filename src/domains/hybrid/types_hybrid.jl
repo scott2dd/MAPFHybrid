@@ -62,7 +62,7 @@ Base.isequal(vc1::VertexConstraint, vc2::VertexConstraint) = (vc1.time, vc1.node
 
 @with_kw struct EdgeConstraint
     time::Int64
-    nodeIdx1::Int64
+    nodeIdx1::Int64 
     nodeIdx2::Int64
 end
 
@@ -154,7 +154,6 @@ function a_star_implicit_shortest_path!(graph::SimpleWeightedDiGraph{Int64}, env
         end
         
         #otherwise, expand this node and add each to open list
-        
         for raw_nbr in neighbors(graph, node_idx) #; node_idx]
             bold, gold = state.b, state.g
             bij, gij = euc_inst.C[node_idx, raw_nbr], euc_inst.Z[node_idx, raw_nbr]

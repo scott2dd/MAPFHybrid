@@ -8,7 +8,7 @@ using DataStructures
 using Parameters
 using Graphs
 using SimpleWeightedGraphs
-
+using HybridUAVPlanning
 
 
 # Abstract types
@@ -52,6 +52,7 @@ include("cbs.jl")
 # include("domains/grid2d/ecbs_grid2d.jl")
 # include("domains/grid2d/a_star_epsilon_grid2d.jl")
 include("domains/hybrid/types_hybrid.jl")
+include("domains/hybrid/label_temporal.jl")
 include("domains/hybrid/cbs_hybrid.jl")
 # Types
 export
