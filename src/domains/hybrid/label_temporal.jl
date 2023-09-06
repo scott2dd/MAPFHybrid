@@ -5,10 +5,35 @@
     removed heur input, assume we are always doing astar (for MAPF we definitely want this!)
 """
 
-function get_state_path(pathL::Vector{Int64}, init_state::HybridState)
+function get_state_path(pathL::Vector{Int64}, init_state::HybridState, cost::Int64)
+    #for ease, assume all movements take 1 time step!
+    pathLength = length(pathL)
+    # finalstate = HybridState(pathL[end], init_state.time + pathLength - 1)
+    
+    stateseq = Tuple{HybridState, Int64}[]
+    actions = Tuple{HybridAction, Int64}[]
+    state = deepcopy(init_state)
+    running_cost = 0
+    push!(stateseq, (state, running_cost))
+    prior = state[1]
+    for i in 2:length(pathL) #for each node in path, get the state
+        node = pathL[i]
+        state = HybridState(node, state.time + 1)
 
+        wij = euc_inst.C[prior, node]
+
+        running_cost += wij
+        push!(stateseq, (state, running_cost))
+        if wij == 0
+            push!(actions, (HybridAction(Wait, 0), 0))
+        else
+            push!(actions, (HybridAction(Move, node), 0))
+        end
+        prior = node
+    end
+    end
 end
-function hybrid_label_temporal(env::HybridEnvironment, constraints::HybridConstraints, agent_idx::Int64, state::HybridState, goal::Int64, Bstart::Int64 = 0, Gstart::Int64 = 0) 
+function hybrid_label_temporal(env::HybridEnvironment, constraints::HybridConstraints, agent_idx::Int64, initstate::HybridState, goal::Int64) 
     #proc EucgraphInst
     def = env.euc_inst
     Alist, F, C, Z = def.Alist, def.F, def.C, def.Z
@@ -19,7 +44,7 @@ function hybrid_label_temporal(env::HybridEnvironment, constraints::HybridConstr
     SC = 0
     locs = def.locs
     
-    start = state.
+    start, starttime = initstate.nodeIdx, initstate.time
     N = length(Alist)
     graph = make_graph(def)
     Fvec = fill(2^63 - 1, N)
@@ -38,7 +63,7 @@ function hybrid_label_temporal(env::HybridEnvironment, constraints::HybridConstr
     state_to_idx = Dict{Tuple{Int64, Int64}, Int64}()
     idx_to_state = Dict{Int64, Tuple{Int64, Int64}}()
     #add init state here...
-    state_to_idx[(start,0)] = 1
+    state_to_idx[(start,starttime)] = 1
     idx_to_state[1] = (start,0)
 
     #init open and closed list
@@ -76,6 +101,7 @@ function hybrid_label_temporal(env::HybridEnvironment, constraints::HybridConstr
             label_copy[4], label_copy[5] = node, prior_node
             opt_path = get_path(label_copy, came_from, start) 
             # opt_gen = get_gen(label_treated, gen_track)
+            stateseq, actions = get_state_path(opt_path, initstate, cost)
             return opt_cost, opt_path
         end
 
