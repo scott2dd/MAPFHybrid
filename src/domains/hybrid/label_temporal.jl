@@ -1,38 +1,43 @@
 """
+    take the path and zip it into PlanResult format. Need cumulative cost and action cost (wij) along the path
+"""
+function get_state_path(pathL::Vector{Int64}, init_state::HybridState, C::SparseMatrixCSC{Int64, Int64})
+    #for ease, assume all movements take 1 time step!
+    pathLength = length(pathL)
+        
+    stateseq = Tuple{HybridState, Int64}[] #state plus cumulative cost to get there
+    actions = Tuple{HybridAction, Int64}[] #action (which node we move to) and cost of that action
+    state = deepcopy(init_state)
+    running_cost = 0
+    push!(stateseq, (state, running_cost))
+    prior = state.nodeIdx
+    for i in 2:length(pathL) #for each node in path, get the state
+        node = pathL[i]
+        state = HybridState(nodeIdx = node, time = state.time + 1, b=0, g=0)
+
+        wij = C[prior, node]
+
+        running_cost += wij
+        push!(stateseq, (state, running_cost)) #new state plus cost
+        #now get action to get to this ^^ state and the cost of that action (wij)
+        if wij == 0
+            push!(actions, (HybridAction(Wait, 0), 0))
+        else
+            push!(actions, (HybridAction(Move, node), wij))
+        end
+        prior = node
+    end
+    return stateseq, actions
+end
+
+using HybridUAVPlanning
+import Statistics.mean
+"""
     input EucGraphInt instance
     constraints - vector of hybrid constraints for the problem (we only pick out our agent's constraints)
     agent_idx 
     removed heur input, assume we are always doing astar (for MAPF we definitely want this!)
 """
-
-function get_state_path(pathL::Vector{Int64}, init_state::HybridState, cost::Int64)
-    #for ease, assume all movements take 1 time step!
-    pathLength = length(pathL)
-    # finalstate = HybridState(pathL[end], init_state.time + pathLength - 1)
-    
-    stateseq = Tuple{HybridState, Int64}[]
-    actions = Tuple{HybridAction, Int64}[]
-    state = deepcopy(init_state)
-    running_cost = 0
-    push!(stateseq, (state, running_cost))
-    prior = state[1]
-    for i in 2:length(pathL) #for each node in path, get the state
-        node = pathL[i]
-        state = HybridState(node, state.time + 1)
-
-        wij = euc_inst.C[prior, node]
-
-        running_cost += wij
-        push!(stateseq, (state, running_cost))
-        if wij == 0
-            push!(actions, (HybridAction(Wait, 0), 0))
-        else
-            push!(actions, (HybridAction(Move, node), 0))
-        end
-        prior = node
-    end
-    end
-end
 function hybrid_label_temporal(env::HybridEnvironment, constraints::HybridConstraints, agent_idx::Int64, initstate::HybridState, goal::Int64) 
     #proc EucgraphInst
     def = env.euc_inst
@@ -45,12 +50,13 @@ function hybrid_label_temporal(env::HybridEnvironment, constraints::HybridConstr
     locs = def.locs
     
     start, starttime = initstate.nodeIdx, initstate.time
+    println("agent $agent_idx || start: $start || goal: $goal")
     N = length(Alist)
     graph = make_graph(def)
     Fvec = fill(2^63 - 1, N)
-    heur_astar = get_heur_astar(goal, locs, Fvec)
+    heur_astar = HybridUAVPlanning.get_heur_astar(goal, locs, Fvec)
     heur_astar(start)
-    heur_label! = get_heur_label(Fvec, graph, C, goal, heur_astar)
+    heur_label! = HybridUAVPlanning.get_heur_label(Fvec, graph, C, goal, heur_astar)
     
     if heur_label!(start) == 2^63 - 1     
         printstyled("  subroutine: no path to goal!", color=:light_red)
@@ -82,12 +88,14 @@ function hybrid_label_temporal(env::HybridEnvironment, constraints::HybridConstr
     # came_from = Dict{Int64, Vector{Vector{Int64}}}(0 => [[0,999999]])  #state_idx not node
     # gen_track = Dict{Int64, Vector{Vector{Int64}}}() #don't need to init... 
     #when adding to above, check if state exists (if it does, then should exist in the above)
+    fmin = Inf
     z=0 
     while true #loop until get to end node, or Q is empty
         isempty(Q) && (printstyled("Q empty, Z  = $z... \n", color=:light_cyan); break)
 
         #pull minimum cost label....
         next = pop!(Q)
+        fmin = min(fmin, next[1])
         label_treated = next[2]
         statei_idx = label_treated[4]
         statei = idx_to_state[statei_idx]
@@ -101,8 +109,9 @@ function hybrid_label_temporal(env::HybridEnvironment, constraints::HybridConstr
             label_copy[4], label_copy[5] = node, prior_node
             opt_path = get_path(label_copy, came_from, start) 
             # opt_gen = get_gen(label_treated, gen_track)
-            stateseq, actions = get_state_path(opt_path, initstate, cost)
-            return opt_cost, opt_path
+            state_seq, actions = get_state_path(opt_path, initstate, def.C)
+            plan = PlanResult(states = state_seq, actions=actions, cost=Int(floor(opt_cost)), fmin=Int(floor(fmin)))
+            return plan
         end
 
         label_copy = deepcopy(label_treated) #make copy with nodes instead of state idxs to backtrack path and state
@@ -153,7 +162,7 @@ function hybrid_label_temporal(env::HybridEnvironment, constraints::HybridConstr
                 label[9] = 1 #gen bool, correct later
                 
                 
-                if EFF_heap(Q, label) # && EFF_P(P, label)
+                if HybridUAVPlanning.EFF_heap(Q, label) # && EFF_P(P, label)
                     #correct path...
                     pnode = idx_to_state[label[5]][1]
                     path_pointer = findall(x-> x == [pnode, label[6]], came_from[nodej])
@@ -198,7 +207,7 @@ function hybrid_label_temporal(env::HybridEnvironment, constraints::HybridConstr
                 label[9] = 0 #gen bool, correct later
 
 
-                if EFF_heap(Q, label) # && EFF_P(P, label)
+                if HybridUAVPlanning.EFF_heap(Q, label) # && EFF_P(P, label)
                     #correct path...
                     pnode = idx_to_state[label[5]][1]
                     path_pointer = findall(x-> x == [pnode, label[6]], came_from[nodej])

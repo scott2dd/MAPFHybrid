@@ -29,7 +29,7 @@ end
     last_goal_constraint::Int64             = -1
     agent_idx::Int64                        = 0
     curr_goal_idx::Int64                    = 0
-    euc_inst::EucGraphInt  #euc graph.  Just pass whole thing, by reference this is fine.  
+    euc_inst::EucGraphInt = EucGraphInt(0, 0, [[]], sparse(zeros(Int64, 1,1)), sparse(zeros(Int64, 1,1)), sparse(zeros(Int64, 1,1)), sparse(zeros(Int64, 1,1)), 0, 0, 0,0, sparse(zeros(Int64, 1)), [1. 2. ;3. 4.])  #euc graph.  Just pass whole thing, by reference this is fine.  
 end
 
 @enum Action Move=1 Wait=2 

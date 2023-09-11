@@ -9,6 +9,7 @@ using Parameters
 using Graphs
 using SimpleWeightedGraphs
 using HybridUAVPlanning
+using SparseArrays
 
 
 # Abstract types

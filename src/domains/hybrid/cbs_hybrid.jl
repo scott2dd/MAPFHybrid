@@ -190,13 +190,9 @@ function low_level_search!(solver::CBSSolver, agent_idx::Int64, s::HybridState, 
     # Set the heuristic
     heuristic(v) = admissible_heuristic_hybrid(env, v)
 
-    # Run the search
-    # @info "RUNNING SEARCH!"
-    # vis = CBSGoalVisitorImplicit(env, constraints)
     vis = nothing
-    #NEED TO:
-    plan_result =  a_star_implicit_shortest_path!(env.orig_graph, env, s, agent_idx, constraints)
-    # plan_result = astar_get_plan(env, pathout, state_seq, cost, fmin, cum_cost, ind_cost)
+    goali = env.goals[agent_idx]
+    plan_result =  hybrid_label_temporal(env, constraints, agent_idx, s, goali)
 
     # Return empty solution
     if plan_result == nothing
