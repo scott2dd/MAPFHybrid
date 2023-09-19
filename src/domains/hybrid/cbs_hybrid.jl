@@ -192,14 +192,14 @@ function low_level_search!(solver::CBSSolver, agent_idx::Int64, s::HybridState, 
 
     vis = nothing
     goali = env.goals[agent_idx]
-    plan_result =  hybrid_label_temporal(env, constraints, agent_idx, s, goali)
-
+    tlabel = @elapsed plan_result =  hybrid_label_temporal(env, constraints, agent_idx, s, goali)
+    tastar = @elapsed _ = a_star_implicit_shortest_path!(env.state_graph, env, s, agent_idx, constraints)
     # Return empty solution
     if plan_result == nothing
-        return PlanResult{HybridState,HybridAction,Int64}()
+        return nothing, tlabel
     end
 
-    return plan_result
+    return plan_result, tlabel, tastar
 end
 
 # mutable struct CBSGoalVisitorImplicit <: AbstractDijkstraVisitor

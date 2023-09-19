@@ -77,14 +77,16 @@ search!(solver::CBSSolver{S,A,C,HC,F,CNR,E}, initial_states::Vector{S}) where {S
 
     Calls the CBS Solver on the given problem.
 """
-function search!(solver::CBSSolver{S,A,C,HC,F,CNR,E}, initial_states::Vector{S}) where {S <: MAPFState, A <: MAPFAction, C <: Number, HC <: HighLevelCost,
+function search!(solver::CBSSolver{S,A,C,HC,F,CNR,E}, initial_states::Vector{S}; time_lim::Float64 = 120.0) where {S <: MAPFState, A <: MAPFAction, C <: Number, HC <: HighLevelCost,
                                                                                     F <: MAPFConflict, CNR <: MAPFConstraints, E <: MAPFEnvironment}
-
+    times_subroutine = Float64[] #append to this for each subproblem, can get mean / total / etc from this vector....
+    times_astar = Float64[]
+    time_start = time()
     num_agents = length(initial_states)
 
     start = CBSHighLevelNode{S,A,C,CNR}(solution = Vector{PlanResult{S,A,C}}(undef, num_agents),
                              constraints = Vector{CNR}(undef, num_agents))
-
+    
     for idx = 1:num_agents
 
         start.constraints[idx] = get_empty_constraint(CNR)
@@ -93,7 +95,9 @@ function search!(solver::CBSSolver{S,A,C,HC,F,CNR,E}, initial_states::Vector{S})
         set_low_level_context!(solver.env, idx, start.constraints[idx])
 
         # Calls get_plan_result_from_astar within
-        new_solution = low_level_search!(solver, idx, initial_states[idx], start.constraints[idx])
+        new_solution, tlabel, tastar = low_level_search!(solver, idx, initial_states[idx], start.constraints[idx])
+        push!(times_subroutine, tlabel)
+        push!(times_astar, tastar)
         # println("new solution for $(idx): ", new_solution)
         # Return empty solution if cannot find
         if isempty(new_solution)
@@ -110,20 +114,22 @@ function search!(solver::CBSSolver{S,A,C,HC,F,CNR,E}, initial_states::Vector{S})
 
     while ~(isempty(solver.heap))
         P = pop!(solver.heap)
-
+        if time() - time_start > time_lim
+            println("time limit reached")
+            P.cost = -1
+            return P, id, times_subroutine, times_astar
+        end
+        #if empty node, it should never be in heap?
         conflict = get_first_conflict(solver.env, P.solution)
         # If no conflict, we are done
         if conflict == nothing
-            @info "SOLVED! Cost: ",P.cost
-            # IMP - One or more solutions might be empty - need to check at higher level
-            return P
+            return P,id, times_subroutine, times_astar
         end
 
         # Create additional nodes to resolve conflict (which is not nothing)
         constraints = create_constraints_from_conflict(solver.env, conflict)
         for constraint in constraints
             for (i, c) in constraint
-
                 new_node = deepcopy(P)
                 new_node.id = id
 
@@ -136,12 +142,14 @@ function search!(solver::CBSSolver{S,A,C,HC,F,CNR,E}, initial_states::Vector{S})
                 new_node.cost = deaccumulate_cost(solver.hlcost, new_node.cost, new_node.solution[i].cost)
 
                 set_low_level_context!(solver.env, i, new_node.constraints[i])
-                new_solution = low_level_search!(solver, i, initial_states[i], new_node.constraints[i])
+                new_solution,tlabel, tastar = low_level_search!(solver, i, initial_states[i], new_node.constraints[i])
+                push!(times_subroutine, tlabel)
+                push!(times_astar, tastar)
 
                 # readline()
 
                 # Only create new node if we found a solution
-                if ~(isempty(new_solution))
+                if new_solution != nothing #nothing if Zbreak, no path to goal, or Q empty...
 
                     new_node.solution[i] = new_solution
                     new_node.cost = accumulate_cost(solver.hlcost, new_node.cost, new_solution.cost)

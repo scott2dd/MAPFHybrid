@@ -116,6 +116,7 @@ function reconstruct_path(parents::Dict{Int64,Int64}, curr_idx::Int64, stateidx_
 end
 function a_star_implicit_shortest_path!(graph::SimpleWeightedDiGraph{Int64}, env::HybridEnvironment, state::HybridState, uavi::Int64, constraints::HybridConstraints)
     goal = env.goals[uavi]
+    euc_inst = env.euc_inst
     state_to_idx = deepcopy(env.state_to_idx)
     idx_to_state = deepcopy(env.idx_to_state)
     parents = Dict{Int64,Int64}() #state_idx to state_idx

@@ -50,9 +50,9 @@ function hybrid_label_temporal(env::HybridEnvironment, constraints::HybridConstr
     locs = def.locs
     
     start, starttime = initstate.nodeIdx, initstate.time
-    println("agent $agent_idx || start: $start || goal: $goal")
+    # println("agent $agent_idx || start: $start || goal: $goal")
     N = length(Alist)
-    graph = make_graph(def)
+    graph = env.orig_graph
     Fvec = fill(2^63 - 1, N)
     heur_astar = HybridUAVPlanning.get_heur_astar(goal, locs, Fvec)
     heur_astar(start)
@@ -60,7 +60,7 @@ function hybrid_label_temporal(env::HybridEnvironment, constraints::HybridConstr
     
     if heur_label!(start) == 2^63 - 1     
         printstyled("  subroutine: no path to goal!", color=:light_red)
-        return -1,[0], Bool.([0]) #infeasible!
+        return nothing
     end
     
     #init state_to_idx and idx_to_state
@@ -91,7 +91,7 @@ function hybrid_label_temporal(env::HybridEnvironment, constraints::HybridConstr
     fmin = Inf
     z=0 
     while true #loop until get to end node, or Q is empty
-        isempty(Q) && (printstyled("Q empty, Z  = $z... \n", color=:light_cyan); break)
+        isempty(Q) && (printstyled("   Q empty, Z  = $z... \n", color=:light_cyan); break)
 
         #pull minimum cost label....
         next = pop!(Q)
@@ -133,10 +133,10 @@ function hybrid_label_temporal(env::HybridEnvironment, constraints::HybridConstr
 
             #now check if j @ time is a constraints
             if VertexConstraint(newstate[2], newstate[1]) in constraints.vertex_constraints
-                println("vertex constraint hit!!")
+                # println("vertex constraint hit!!")
                 continue
             elseif EdgeConstraint(newstate[2]-1, nodei, nodej) in constraints.edge_constraints || EdgeConstraint(newstate[2]-1, nodej, nodej) in constraints.edge_constraints 
-                println("edge constraint hit!!")
+                # println("edge constraint hit!!")
                 continue
             end
 
@@ -237,8 +237,8 @@ function hybrid_label_temporal(env::HybridEnvironment, constraints::HybridConstr
             end
         end
         z+=1
-        z == 200_000 && (printstyled("ZBREAK@$(z)", color=:light_red); break)
+        z == 200_000 && (printstyled("  ZBREAK@$(z)", color=:light_red); break)
         # z%500 == 0 && ProgressMeter.next!(prog)
     end
-    return 0,[0], Bool.([0])
+    return nothing
 end
