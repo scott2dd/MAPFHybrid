@@ -12,6 +12,7 @@ Attributes:
 @with_kw struct PlanResult{S <: MAPFState, A <: MAPFAction, C <: Number}
     states::Vector{Tuple{S,C}}  = Vector{Tuple{S,C}}(undef, 0)
     actions::Vector{Tuple{A,C}} = Vector{Tuple{A,C}}(undef, 0)
+    gen::Vector{Int64}          = Vector{Int64}(undef, 0)
     cost::C                     = zero(C)
     fmin::C                     = zero(C)
 end

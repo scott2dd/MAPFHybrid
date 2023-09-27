@@ -108,9 +108,10 @@ function hybrid_label_temporal(env::HybridEnvironment, constraints::HybridConstr
             prior_node = idx_to_state[label_copy[5]][1]
             label_copy[4], label_copy[5] = node, prior_node
             opt_path = get_path(label_copy, came_from, start) 
-            # opt_gen = get_gen(label_treated, gen_track)
             state_seq, actions = get_state_path(opt_path, initstate, def.C)
-            plan = PlanResult(states = state_seq, actions=actions, cost=Int(floor(opt_cost)), fmin=Int(floor(fmin)))
+            gen = get_gen(label_treated, gen_track)
+            plan = PlanResult(states = state_seq, actions=actions, cost=Int(floor(opt_cost)), fmin=Int(floor(fmin)), gen = gen)
+            
             return plan
         end
 
