@@ -1,6 +1,6 @@
 # Only need to define heuristic stuff
-function focal_state_heuristic_grid2d(env::Grid2DEnvironment, solution::Vector{PlanResult{Grid2DState,Grid2DAction,Int64}},
-                                      s::Grid2DState)
+function focal_state_heuristic_hybrid(env::HybridEnvironment, solution::Vector{PlanResult{HybridState,HybridAction,Int64}},
+                                      s::HybridState)
 
     num_conflicts = 0
 
@@ -17,8 +17,8 @@ function focal_state_heuristic_grid2d(env::Grid2DEnvironment, solution::Vector{P
 end
 
 
-function focal_transition_heuristic_grid2d(env::Grid2DEnvironment,  solution::Vector{PlanResult{Grid2DState,Grid2DAction,Int64}},
-                                           s1a::Grid2DState, s1b::Grid2DState)
+function focal_transition_heuristic_hybrid(env::HybridEnvironment,  solution::Vector{PlanResult{HybridState,HybridAction,Int64}},
+                                           s1a::HybridState, s1b::HybridState)
 
     num_conflicts = 0
 
@@ -37,7 +37,7 @@ function focal_transition_heuristic_grid2d(env::Grid2DEnvironment,  solution::Ve
     return num_conflicts
 end
 
-function focal_heuristic(env::Grid2DEnvironment, solution::Vector{PlanResult{Grid2DState,Grid2DAction,Int64}})
+function focal_heuristic(env::HybridEnvironment, solution::Vector{PlanResult{HybridState,HybridAction,Int64}})
 
     num_conflicts = 0
     max_rel_time = 0
@@ -80,8 +80,8 @@ function focal_heuristic(env::Grid2DEnvironment, solution::Vector{PlanResult{Gri
     return num_conflicts
 end
 
-function low_level_search!(solver::ECBSSolver, agent_idx::Int64, s::Grid2DState,
-                           constraints::Grid2DConstraints, solution::Vector{PlanResult{Grid2DState,Grid2DAction,Int64}})
+function low_level_search!(solver::ECBSSolver, agent_idx::Int64, s::HybridState,
+                           constraints::HybridConstraints, solution::Vector{PlanResult{HybridState,HybridAction,Int64}})
 
     env = solver.env
 
@@ -92,12 +92,17 @@ function low_level_search!(solver::ECBSSolver, agent_idx::Int64, s::Grid2DState,
     edge_wt_fn(u, v) = 1
 
     # Set the heuristics
-    admissible_heuristic(s) = admissible_heuristic_grid2d(solver.env, s)
-    focal_state_heuristic(s) = focal_state_heuristic_grid2d(solver.env, solution, s)
-    focal_transition_heuristic(s1a, s1b) = focal_transition_heuristic_grid2d(solver.env, solution, s1a, s1b)
+    admissible_heuristic(s) = admissible_heuristic_hybrid(solver.env, s)
 
-    # Run the search
+
+    focal_state_heuristic(s) = focal_state_heuristic_hybrid(solver.env, solution, s)
+    focal_transition_heuristic(s1a, s1b) = focal_transition_heuristic_hybrid(solver.env, solution, s1a, s1b)
+
+    # Run the search 
+
     vis = CBSGoalVisitorImplicit(env, constraints)
+    #^^^^^^^^^^^^ need to change this?
+    
     a_star_eps_states = a_star_implicit_epsilon_path!(env.state_graph,
                                                           edge_wt_fn, idx,
                                                           vis,
@@ -112,7 +117,7 @@ function low_level_search!(solver::ECBSSolver, agent_idx::Int64, s::Grid2DState,
                                             env.curr_goal_idx, a_star_eps_states.best_fvalue)
 
     if plan_result == nothing
-        return PlanResult{Grid2DState,Grid2DAction,Int64}()
+        return PlanResult{HybridState,HybridAction,Int64}()
     end
 
     return plan_result
