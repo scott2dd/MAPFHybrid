@@ -202,11 +202,6 @@ function low_level_search!(solver::CBSSolver, agent_idx::Int64, s::HybridState, 
     return plan_result, tlabel, tastar
 end
 
-# mutable struct CBSGoalVisitorImplicit <: AbstractDijkstraVisitor
-#     env::HybridEnvironment
-#     constraints::HybridConstraints
-# end
-
 function include_vertex!(env::HybridEnvironment, u::HybridState, v::HybridState, d::N, nbrs::Vector{Int64}) where {N <: Number}
 
     if is_solution(env, v)
