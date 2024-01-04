@@ -16,7 +16,7 @@ function focal_heuristic end
     id::Int64                           = 0
 end
 
-Base.isless(hln1::ECBSHighLevelNode, hln2::ECBSHighLevelNode) = hln1.cost < hln2.cost
+Base.isless(hln1::ECBSHighLevelNode, hln2::ECBSHighLevelNode) = hln1.cost < hln2.cost #this is used in heap def, so we can just pass plain nodes into the heap (and using this isless() to order heap directly)
 
 struct CompareFocalHeuristic
 end
@@ -82,18 +82,18 @@ function search!(solver::ECBSSolver{S,A,C,HC,F,CNR,E}, initial_states::Vector{S}
 
         old_best_cost = best_cost
         best_cost = top(solver.heap).cost
-
-        if best_cost > old_best_cost
-
+        
+        #if best OPEN best cost is now updated, then we need to update the FOCAL list too!
+        if best_cost > old_best_cost 
             for node in sort(solver.heap.nodes, by = x->x.value.cost)
                 val = node.value.cost
-
+                #if this node was not in FOCAL by old best cost but would now be in FOCAL by new cost, then add it to FOCAL
                 if val > solver.weight * old_best_cost && val <= solver.weight * best_cost &&
                     ~(haskey(solver.focal_hmap, node.value.id))
                     solver.focal_hmap[node.value.id] = push!(solver.focal_heap, node.value)
                 end
 
-                if val > solver.weight * best_cost
+                if val > solver.weight * best_cost #break because we are looking through the sorted OPEN (want sol w/in w*opt)
                     break
                 end
             end
@@ -115,7 +115,7 @@ function search!(solver::ECBSSolver{S,A,C,HC,F,CNR,E}, initial_states::Vector{S}
 
         # Handle conflict
         conflict = get_first_conflict(solver.env, focal_entry.solution)
-
+            
         # If no conflict, we are done
         if conflict == nothing
             @info "SOLVED! Cost: ",focal_entry.cost
@@ -138,10 +138,10 @@ function search!(solver::ECBSSolver{S,A,C,HC,F,CNR,E}, initial_states::Vector{S}
 
                 add_constraint!(new_node.constraints[i], c)
 
-                new_node.cost = deaccumulate_cost(solver.hlcost, new_node.cost, new_node.solution[i].cost)
-                new_node.lb -= new_node.solution[i].fmin
+                new_node.cost = deaccumulate_cost(solver.hlcost, new_node.cost, new_node.solution[i].cost) #remove this cost, add back later after solving low level (non conflicting agents wont change their paths?)
+                new_node.lb -= new_node.solution[i].fmin #same with LB
 
-                set_low_level_context!(solver.env, i, new_node.constraints[i])
+                set_low_level_context!(solver.env, i, new_node.constraints[i]) #changes constraints in case of goal conflict
                 new_solution = low_level_search!(solver, i, initial_states[i], new_node.constraints[i], new_node.solution)
 
                 if ~(isempty(new_solution))
@@ -153,9 +153,9 @@ function search!(solver::ECBSSolver{S,A,C,HC,F,CNR,E}, initial_states::Vector{S}
                     new_node.lb += new_solution.fmin
                     new_node.focal_heuristic_value = focal_heuristic(solver.env, new_node.solution)
 
-                    solver.hmap[id] = push!(solver.heap, new_node)
+                    solver.hmap[id] = push!(solver.heap, new_node) #add to OPEN
 
-                    if new_node.cost <= solver.weight * best_cost
+                    if new_node.cost <= solver.weight * best_cost #if this node is within w*opt, then add to FOCAL too
                         solver.focal_hmap[id] = push!(solver.focal_heap, new_node)
                     end
                     id += 1
