@@ -1,4 +1,4 @@
-function hybrid_label_temporal(env::HybridEnvironment, constraints::HybridConstraints, agent_idx::Int64, initstate::HybridState, goal::Int64)
+function hybrid_label_temporal_focal(env::HybridEnvironment, constraints::HybridConstraints, agent_idx::Int64, initstate::HybridState, goal::Int64, , eps::Float64 = 1.0)
     #proc EucgraphInst
     def = env.euc_inst
     Alist, F, C, Z = def.Alist, def.F, def.C, def.Z
@@ -32,29 +32,28 @@ function hybrid_label_temporal(env::HybridEnvironment, constraints::HybridConstr
     state_to_idx[(start, starttime)] = 1
     idx_to_state[1] = (start, 0)
 
-    #init open and closed list
-    Q = MutableBinaryMinHeap([(heur_label!(start) + 0,
-        [0, Bstart, Qstart, 1, 1, 1, 1, 1, heur_label!(start) + 0])]
-    #g, B, g_f, state, priorstate, came_from_idx, pathlength, gentrack_idx, h
-    )
-    #label is: [partialcost, b, g, thisstate, priorstate, IDX in came_from[priorstate], pathlength, pathtrack_idx, pathtrack_idx, h]
-    P = [zeros(Int, 0, 9) for k = 1:size(C, 1)] #set of treated labels | new labels compare to this AND Q
+    #init open list 
+    open_heap = MutableBinaryMinHeap([(heur_label!(start) + 0,
+        [0, Bstart, Qstart, 1, 1, 1, 1, 1, heur_label!(start) + 0])])
+    
+        #init focal list
+    focal_heap = MutableBinaryMinHeap(top(open_heap))
 
+    P = [zeros(Int, 0, 9) for k = 1:size(C, 1)] #set of treated labels | new labels compare to this AND open_heap
+
+    #now init path and gen tracking data
     came_from = [Vector{Int64}[] for _ in 1:N]
-    push!(came_from[start], [0, 9999]) # so we just add a dummy entry to [start]
-    gen_track = [Vector{Int64}[] for _ in 1:N]  #data struct to track generator patterns 
-    #same paths will have same time, so we can have entries per node (rather than per state)
+    push!(came_from[start], [0, 9999]) 
+    gen_track = [Vector{Int64}[] for _ in 1:N]  
+    
 
-    # came_from = Dict{Int64, Vector{Vector{Int64}}}(0 => [[0,999999]])  #state_idx not node
-    # gen_track = Dict{Int64, Vector{Vector{Int64}}}() #don't need to init... 
-    #when adding to above, check if state exists (if it does, then should exist in the above)
     fmin = Inf
     z = 0
-    while true #loop until get to end node, or Q is empty
-        isempty(Q) && (printstyled("   Q empty, Z  = $z... \n", color=:light_cyan); break)
+    while true #loop until get to end node, or open_heap is empty
+        isempty(open_heap) && (printstyled("open set empty, Z  = $z... \n", color=:light_cyan); break)
 
         #pull minimum cost label....
-        next = pop!(Q)
+        next = pop!(open_heap)
         fmin = min(fmin, next[1])
         label_treated = next[2]
         statei_idx = label_treated[4]
@@ -123,7 +122,7 @@ function hybrid_label_temporal(env::HybridEnvironment, constraints::HybridConstr
                 label[9] = 1 #gen bool, correct later
 
 
-                if HybridUAVPlanning.EFF_heap(Q, label) # && EFF_P(P, label)
+                if HybridUAVPlanning.EFF_heap(open_heap, label) # && EFF_P(P, label)
                     #correct path...
                     pnode = idx_to_state[label[5]][1]
                     path_pointer = findall(x -> x == [pnode, label[6]], came_from[nodej])
@@ -148,8 +147,8 @@ function hybrid_label_temporal(env::HybridEnvironment, constraints::HybridConstr
 
                     #correct hj
                     label[9] = label[1] + hj
-                    #add to Q..
-                    push!(Q, (label[1] + hj, label))
+                    #add to open_heap..
+                    push!(open_heap, (label[1] + hj, label))
 
                 end
             end
@@ -168,7 +167,7 @@ function hybrid_label_temporal(env::HybridEnvironment, constraints::HybridConstr
                 label[9] = 0 #gen bool, correct later
 
 
-                if HybridUAVPlanning.EFF_heap(Q, label) # && EFF_P(P, label)
+                if HybridUAVPlanning.EFF_heap(open_heap, label) # && EFF_P(P, label)
                     #correct path...
                     pnode = idx_to_state[label[5]][1]
                     path_pointer = findall(x -> x == [pnode, label[6]], came_from[nodej])
@@ -193,7 +192,7 @@ function hybrid_label_temporal(env::HybridEnvironment, constraints::HybridConstr
 
                     #correct hj
                     label[9] = label[1] + hj
-                    push!(Q, (label[9], label))
+                    push!(open_heap, (label[9], label))
                 end
             end
         end
