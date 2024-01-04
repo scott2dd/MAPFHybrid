@@ -54,6 +54,7 @@ include("cbs.jl")
 # include("domains/grid2d/a_star_epsilon_grid2d.jl")
 include("domains/hybrid/types_hybrid.jl")
 include("domains/hybrid/label_temporal.jl")
+include("domains/hybrid/hybrid_label_temporal_focal.jl")
 include("domains/hybrid/cbs_hybrid.jl")
 # Types
 export
