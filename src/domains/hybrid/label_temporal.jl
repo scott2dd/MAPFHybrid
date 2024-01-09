@@ -38,7 +38,7 @@ import Statistics.mean
     agent_idx 
     removed heur input, assume we are always doing astar (for MAPF we definitely want this!)
 """
-function hybrid_label_temporal(env::HybridEnvironment, constraints::HybridConstraints, agent_idx::Int64, initstate::HybridState, goal::Int64) 
+function label_temporal(env::HybridEnvironment, constraints::HybridConstraints, agent_idx::Int64, initstate::HybridState, goal::Int64) 
     #proc EucgraphInst
     def = env.euc_inst
     Alist, F, C, Z = def.Alist, def.F, def.C, def.Z
