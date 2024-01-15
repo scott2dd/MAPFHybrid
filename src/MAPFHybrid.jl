@@ -47,15 +47,16 @@ abstract type MAPFEnvironment end
 include("utils.jl")
 include("high_level_cost.jl")
 include("cbs.jl")
-# include("ecbs.jl")
+include("ecbs.jl")
 # include("domains/grid2d/types.jl")
 # include("domains/grid2d/cbs_grid2d.jl")
 # include("domains/grid2d/ecbs_grid2d.jl")
 # include("domains/grid2d/a_star_epsilon_grid2d.jl")
 include("domains/hybrid/types_hybrid.jl")
 include("domains/hybrid/label_temporal.jl")
-include("domains/hybrid/hybrid_label_temporal_focal.jl")
+include("domains/hybrid/label_temporal_focal.jl")
 include("domains/hybrid/cbs_hybrid.jl")
+include("domains/hybrid/ecbs_hybrid.jl")
 # Types
 export
     MAPFState,
@@ -90,10 +91,10 @@ export
     add_constraint,
     low_level_search!,
     CBSSolver,
+    ECBSSolver,
     search!,
     focal_heuristic,
     a_star_implicit_shortest_path!
-    # ECBSSolver
 
 # Hybrid Types
 export

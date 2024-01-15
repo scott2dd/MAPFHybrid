@@ -80,45 +80,26 @@ function focal_heuristic(env::HybridEnvironment, solution::Vector{PlanResult{Hyb
     return num_conflicts
 end
 
-function low_level_search!(solver::ECBSSolver, agent_idx::Int64, s::HybridState,
+function low_level_search!(solver::ECBSSolver, agent_idx::Int64, statei::HybridState,
                            constraints::HybridConstraints, solution::Vector{PlanResult{HybridState,HybridAction,Int64}})
 
     env = solver.env
 
     env.curr_goal_idx = 0
 
-    idx = get_env_state_idx!(env, s)
+    idx = get_env_state_idx!(env, statei)
 
-    edge_wt_fn(u, v) = 1
-
-    # Set the heuristics
-    admissible_heuristic(s) = admissible_heuristic_hybrid(solver.env, s)
-
-
+    # Set the focal state heuristics
     focal_state_heuristic(s) = focal_state_heuristic_hybrid(solver.env, solution, s)
     focal_transition_heuristic(s1a, s1b) = focal_transition_heuristic_hybrid(solver.env, solution, s1a, s1b)
 
     # Run the search 
-
-    vis = CBSGoalVisitorImplicit(env, constraints)
-    #^^^^^^^^^^^^ need to change this?
+    goali = env.goals[agent_idx]
+    plan_result = label_temporal_focal(env, constraints, agent_idx, statei, goali, solver.weight, focal_state_heuristic, focal_transition_heuristic)  
     
-    a_star_eps_states = a_star_implicit_epsilon_path!(env.state_graph,
-                                                          edge_wt_fn, idx,
-                                                          vis,
-                                                          solver.weight,
-                                                          admissible_heuristic,
-                                                          focal_state_heuristic,
-                                                          focal_transition_heuristic,
-                                                          Int64)
-
-    plan_result = get_plan_result_from_astar(env, a_star_eps_states.a_star_states.dists,
-                                            a_star_eps_states.a_star_states.parent_indices, idx,
-                                            env.curr_goal_idx, a_star_eps_states.best_fvalue)
-
     if plan_result == nothing
-        return PlanResult{HybridState,HybridAction,Int64}()
+        return PlanResult{HybridState,HybridAction,Int64}(), 0.0, 0.0
     end
 
-    return plan_result
+    return plan_result, 0.0, 0.0
 end

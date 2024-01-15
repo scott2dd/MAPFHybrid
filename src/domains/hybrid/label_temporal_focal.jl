@@ -141,24 +141,21 @@ function label_temporal_focal(env::HybridEnvironment, constraints::HybridConstra
     open_map[start] = push!(open_list, init_label)
     focal_map[start] = push!(focal_list, init_label)
 
-    fminmin = Inf
+    fmin = 0
     z = 0
     while true #loop until get to end node, or open_heap is empty
         isempty(open_heap) && (printstyled("open set empty, Z  = $z... \n", color=:light_cyan); break)
 
-        fmin = top(open_list).fcost
+        fmin = top(open_list).fcost #keep to return for high level FOCAL
         labelN = pop!(open_heap)
         delete!(open_list, open_map[labelN.label_id]) #remove from open_list
 
-        fminmin = min(fmin, labelN.fcost)
-
-        
         if labelN.node_idx == goal
             opt_cost = labelN.gcost
             opt_path = get_path(labelN, came_from, start)
             state_seq, actions = get_state_path(opt_path, initstate, def.C)
             gen = get_gen(labelN, gen_track)
-            plan = PlanResult(states=state_seq, actions=actions, cost=Int(floor(opt_cost)), fmin=Int(floor(fminmin)), gen=gen)
+            plan = PlanResult(states=state_seq, actions=actions, cost=Int(floor(opt_cost)), fmin=fmin, gen=gen)
             return plan
         end
 
