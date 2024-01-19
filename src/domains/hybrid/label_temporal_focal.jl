@@ -22,7 +22,7 @@ end
 Base.isless(l1::MyLabel, l2::MyLabel) = l1.fcost < l2.fcost
 
 #now define lexico ordering for MyLabels for focal heap (used 2 param ordering)
-struct myLabelFocalCompare <: Base.Order.Ordering end
+struct MyLabelFocalCompare <: Base.Order.Ordering end
 Base.lt(o::MyLabelFocalCompare, n1::MyLabel, n2::MyLabel) =
     (n1.focal_heurisitc, n1.fcost) < (n2.focal_heuristic_value, n2.fcost)
 
@@ -131,7 +131,7 @@ function label_temporal_focal(env::HybridEnvironment, constraints::HybridConstra
 
     #init open list 
     open_list = MutableBinaryMinHeap{MyLabel}()
-    focal_list = MutableBinaryMinHeap{MyLabel, myLabelFocalCompare}()
+    focal_list = MutableBinaryMinHeap{MyLabel, MyLabelFocalCompare}()
     open_map, focal_map = Dict{Int64,Int64}(), Dict{Int64,Int64}()
 
     label_id_counter = 1
