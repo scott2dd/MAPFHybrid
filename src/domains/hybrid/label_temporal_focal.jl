@@ -195,7 +195,7 @@ function label_temporal_focal(env::HybridEnvironment, constraints::HybridConstra
                     gcost = labelN.gcost + C[nodei, nodej],
                     fcost = labelN.gcost + C[nodei, nodej] + hj,
                     hcost = hj,
-                    focal_heuristic = 0
+                    focal_heuristic = 0,
                     state_idx = newstate_idx,
                     prior_state_idx = labelN.state_idx,
                     prior_node_idx = labelN.node_idx,
@@ -226,7 +226,7 @@ function label_temporal_focal(env::HybridEnvironment, constraints::HybridConstra
                     gcost = labelN.gcost + C[nodei, nodej],
                     fcost = labelN.gcost + C[nodei, nodej] + hj,
                     hcost = hj,
-                    focal_heuristic = 0
+                    focal_heuristic = 0,
                     state_idx = newstate_idx,
                     prior_state_idx = labelN.state_idx,
                     prior_node_idx = labelN.node_idx,
