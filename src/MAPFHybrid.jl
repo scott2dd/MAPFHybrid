@@ -10,6 +10,7 @@ using Graphs
 using SimpleWeightedGraphs
 using HybridUAVPlanning
 using SparseArrays
+import Statistics.mean
 
 
 # Abstract types
