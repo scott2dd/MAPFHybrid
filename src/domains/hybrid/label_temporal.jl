@@ -30,8 +30,7 @@ function get_state_path(pathL::Vector{Int64}, init_state::HybridState, C::Sparse
     return stateseq, actions
 end
 
-using HybridUAVPlanning
-import Statistics.mean
+
 """
     input EucGraphInt instance
     constraints - vector of hybrid constraints for the problem (we only pick out our agent's constraints)
@@ -107,9 +106,9 @@ function label_temporal(env::HybridEnvironment, constraints::HybridConstraints, 
             node = idx_to_state[label_copy[4]][1]
             prior_node = idx_to_state[label_copy[5]][1]
             label_copy[4], label_copy[5] = node, prior_node
-            opt_path = get_path(label_copy, came_from, start) 
+            opt_path = HybridUAVPlanning.get_path(label_copy, came_from, start) 
             state_seq, actions = get_state_path(opt_path, initstate, def.C)
-            gen = get_gen(label_treated, gen_track)
+            gen = HybridUAVPlanning.get_gen(label_treated, gen_track)
             plan = PlanResult(states = state_seq, actions=actions, cost=Int(floor(opt_cost)), fmin=Int(floor(fmin)), gen = gen)
             
             return plan
@@ -120,7 +119,7 @@ function label_temporal(env::HybridEnvironment, constraints::HybridConstraints, 
         prior_node = prior_state[1]
         label_copy[4], label_copy[5] = nodei, prior_node #switch to node, rather than state, just for path getting
         
-        pathi = get_path(label_copy, came_from, start) 
+        pathi = HybridUAVPlanning.get_path(label_copy, came_from, start)
 
         for nodej in Alist[nodei]
             nodej==nodei && continue
