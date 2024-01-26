@@ -1,4 +1,4 @@
-mutable struct MyLabel
+@kwdef mutable struct MyLabel
     gcost::Float64
     fcost::Float64
     hcost::Float64
@@ -24,12 +24,24 @@ Base.isless(l1::MyLabel, l2::MyLabel) = l1.fcost < l2.fcost
 #now define lexico ordering for MyLabels for focal heap (used 2 param ordering)
 struct MyLabelFocalCompare <: Base.Order.Ordering end
 Base.lt(o::MyLabelFocalCompare, n1::MyLabel, n2::MyLabel) =
-    (n1.focal_heurisitc, n1.fcost) < (n2.focal_heuristic_value, n2.fcost)
+    (n1.focal_heuristic, n1.fcost) < (n2.focal_heuristic, n2.fcost)
 
 
-function get_path(label::MyLabel, came_from::Vector{Vector{Int64}}, start::Int64)
+function EFF_heap(Q::MutableBinaryMinHeap{MyLabel}, label_new::MyLabel) 
+    isempty(Q) && (return true)
+    node_map_copy = Q.node_map
+    for k in 1:length(node_map_copy)
+        node_map_copy[k] == 0 && continue
+        Q[k].state_idx != label_new.state_idx && continue #if they are different STATES, then skip...
+        
+        (Q[k].gcost <= label_new.gcost && Q[k].batt_state >= label_new.batt_state && Q[k].gen_state >= label_new.gen_state) && (return false)
+    end
+    return true #if all this passes, then return true (is efficient)
+end
+
+function get_path(label::MyLabel, came_from::Vector{Vector{Vector{Int64}}}, start::Int64)
     path = Int64[]
-    here = label.nodeidx
+    here = label.node_idx
     cf_idx_here = label.came_from_idx
 
     here == start && return [start]
@@ -44,7 +56,7 @@ function get_path(label::MyLabel, came_from::Vector{Vector{Int64}}, start::Int64
     end
     return reverse(path)
 end
-function get_gen(label::MyLabel, gen_track::Vector{Vector{Int64}})
+function get_gen(label::MyLabel, gen_track::Vector{Vector{Vector{Int64}}})
     #get generator pattern from recursive data struct
     genOut = Bool[]
     PL = label.pathlength #path length of tracked label (in # of nodes) ... so if PL=1 then no edges, 
@@ -58,20 +70,22 @@ function get_gen(label::MyLabel, gen_track::Vector{Vector{Int64}})
     return reverse(genOut)
 end
 
-function update_path_and_gen!(new_label::MyLabel, came_from::Vector{Vector{Int64}}, gen_track::Vector{Vector{Int64}})
+function update_path_and_gen!(new_label::MyLabel, came_from::Vector{Vector{Vector{Int64}}}, gen_track::Vector{Vector{Vector{Int64}}})
     #correct path...
     pnode = new_label.prior_node_idx
+    nextnode = new_label.node_idx
     p_came_from_idx = new_label._hold_came_from_prior
-    path_pointer = findall(x -> x == [pnode, p_came_from_idx], came_from[nodej])
+    path_pointer = findall(x -> x == [pnode, p_came_from_idx], came_from[nextnode])
     if isempty(path_pointer) #if no other label has used this same path...
-        push!(came_from[nodej], [pnode, p_came_from_idx])
-        new_label.came_from_idx = length(came_from[nodej])
+        push!(came_from[nextnode], [pnode, p_came_from_idx])
+        new_label.came_from_idx = length(came_from[nextnode])
     else #if path exists prior, then we use the (nonempty) pointer
         pointer_idx = path_pointer[1]
         new_label.came_from_idx = pointer_idx #label now has index for came_from 
     end
 
     #correct gen....
+    PL = new_label.pathlength
     gen_pointer = findall(x -> x == [new_label.gen_bool, new_label._hold_gen_track_prior], gen_track[new_label.pathlength])
     if isempty(gen_pointer)
         push!(gen_track[PL], [new_label.gen_bool, new_label._hold_gen_track_prior])
@@ -83,7 +97,9 @@ function update_path_and_gen!(new_label::MyLabel, came_from::Vector{Vector{Int64
 
 end
 
-function update_focal!(old_bound, new_bound, open_list, focal_list)
+#type this!!!!!!!!!!
+# ********************************
+function update_focal!(old_bound, new_bound, open_list, focal_list, focal_map)
     for heap_node in open_list.nodes
         label = heap_node.value #get label
         if label.fcost > old_bound && label.fcost <= new_bound
@@ -97,14 +113,13 @@ end
 # MAIN LABELING FUNCTION
 function label_temporal_focal(env::HybridEnvironment, constraints::HybridConstraints, 
             agent_idx::Int64, initstate::HybridState, goal::Int64, eps::Float64, 
-            focal_state_heuristic, focal_transition_heuristic)
+            focal_state_heuristic::Function, focal_transition_heuristic::Function)
     def = env.euc_inst
     Alist, F, C, Z = def.Alist, def.F, def.C, def.Z
     Bstart, Qstart = Int(floor(5 * mean(nonzeros(C)))), 9999
     Bmax = Bstart
+    start, starttime = initstate.nodeIdx, initstate.time
     
-    
-    # println("agent $agent_idx || start: $start || goal: $goal")
     N = length(Alist)
     graph = env.orig_graph
 
@@ -120,7 +135,6 @@ function label_temporal_focal(env::HybridEnvironment, constraints::HybridConstra
     #init state_to_idx and idx_to_state
     state_to_idx = Dict{Tuple{Int64,Int64},Int64}()
     idx_to_state = Dict{Int64,Tuple{Int64,Int64}}()
-    start, starttime = initstate.nodeIdx, initstate.time
     state_to_idx[(start, starttime)] = 1 #add init state
     idx_to_state[1] = (start, 0)
     
@@ -131,36 +145,60 @@ function label_temporal_focal(env::HybridEnvironment, constraints::HybridConstra
 
     #init open list 
     open_list = MutableBinaryMinHeap{MyLabel}()
-    focal_list = MutableBinaryMinHeap{MyLabel, MyLabelFocalCompare}()
+    focal_list = MutableBinaryHeap{MyLabel, MyLabelFocalCompare}()
+
     open_map, focal_map = Dict{Int64,Int64}(), Dict{Int64,Int64}()
 
     label_id_counter = 1
-    init_label = MyLabel(batt_state=Bstart, gen_state=Qstart, gcost=0, fcost = heur_label!(start), hcost = heur_label!(start), focal_heuristic=0, state_idx=1, prior_state_idx = 1, prior_node_idx = 1, _hold_came_from_prior=0, came_from_idx=1, pathlength=1, _hold_gen_track_prior=0, gentrack_idx=1, gen_bool=0, label_id=label_id_counter)
+    init_label = MyLabel(
+        batt_state=Bstart, 
+        gen_state=Qstart, 
+        gcost=0, 
+        fcost = heur_label!(start), 
+        hcost = heur_label!(start), 
+        focal_heuristic=0, 
+        state_idx=1, 
+        prior_state_idx = 0, 
+        node_idx = start,
+        prior_node_idx = 0, 
+        _hold_came_from_prior=0, 
+        came_from_idx=1, 
+        pathlength=1, 
+        _hold_gen_track_prior=0, 
+        gentrack_idx=1, 
+        gen_bool=0, 
+        label_id=label_id_counter)
     label_id_counter += 1
     
-    open_map[start] = push!(open_list, init_label)
-    focal_map[start] = push!(focal_list, init_label)
+    open_map[init_label.label_id] = push!(open_list, init_label)
+    focal_map[init_label.label_id] = push!(focal_list, init_label)
 
-    fmin = 0
+    fmin = Inf
     z = 0
-    while true #loop until get to end node, or open_heap is empty
-        isempty(open_heap) && (printstyled("open set empty, Z  = $z... \n", color=:light_cyan); break)
-
+    while true #loop until get to end node, or open_list is empty
+        isempty(open_list) && (printstyled("open set empty, Z  = $z... \n", color=:light_cyan); break)
         fmin = top(open_list).fcost #keep to return for high level FOCAL
-        labelN = pop!(open_heap)
-        delete!(open_list, open_map[labelN.label_id]) #remove from open_list
+        
+        labelN = top(focal_list) #top of focal_list
+        open_handle = open_map[labelN.label_id] #grab handle from open_map
+
+        pop!(focal_list) #remove from focal_list
+        delete!(focal_map, labelN.label_id) #remove from focal_map
+        delete!(open_list, open_handle) #emove from open_list
+        delete!(open_map, labelN.label_id) #remove from open_map
 
         if labelN.node_idx == goal
             opt_cost = labelN.gcost
             opt_path = get_path(labelN, came_from, start)
             state_seq, actions = get_state_path(opt_path, initstate, def.C)
             gen = get_gen(labelN, gen_track)
-            plan = PlanResult(states=state_seq, actions=actions, cost=Int(floor(opt_cost)), fmin=fmin, gen=gen)
+
+            plan = PlanResult(states=state_seq, actions=actions, cost=Int64(floor(opt_cost)), fmin=Int64(floor(fmin)), gen=gen)
             return plan
         end
 
         pathi = get_path(labelN, came_from, start)
-
+        nodei = labelN.node_idx
         for nodej in Alist[nodei]
             nodej == nodei && continue
             nodej ∈  pathi && continue
@@ -185,35 +223,40 @@ function label_temporal_focal(env::HybridEnvironment, constraints::HybridConstra
                 idx_to_state[newstate_idx] = newstate #now add that to opp dict
             end
             newstate_idx = state_to_idx[newstate]
+            
+            newhybridstate = HybridState(nodeIdx=newstate[1], time=newstate[2], b = 0, g = 0)
+            oldhybridstate = HybridState(nodeIdx=nodei, time=statei[2],b = 0, g = 0)
+            old_fh = labelN.focal_heuristic
+            new_focal_heuristic = old_fh + focal_state_heuristic(newhybridstate) + focal_transition_heuristic(oldhybridstate, newhybridstate)
 
-            #Make label with GEN ON
+            #GEN ON
             new_batt_state = labelN.batt_state - C[nodei, nodej]*(1 - Fbin) + Z[nodei, nodej]
             new_gen_state = labelN.gen_state - Z[nodei, nodej]
             if def.GFlipped[nodei, nodej] == 0 && new_batt_state >= 0 && new_gen_state >= 0 && new_batt_state <= Bmax
-                
                 new_label = MyLabel(
                     gcost = labelN.gcost + C[nodei, nodej],
                     fcost = labelN.gcost + C[nodei, nodej] + hj,
                     hcost = hj,
-                    focal_heuristic = 0,
+                    focal_heuristic = new_focal_heuristic,
+                    node_idx = nodej,
                     state_idx = newstate_idx,
                     prior_state_idx = labelN.state_idx,
                     prior_node_idx = labelN.node_idx,
                     _hold_came_from_prior = labelN.came_from_idx,
-                    came_from_idx = NaN, #fill in later!
+                    came_from_idx = -1, #fill in later! (in update func)
                     pathlength = labelN.pathlength + 1,
                     _hold_gen_track_prior = labelN.gentrack_idx,
-                    gentrack_idx = NaN,  #fill in later!
+                    gentrack_idx = -1,  #fill in later!
                     gen_bool = 1,
                     batt_state = labelN.batt_state - C[nodei, nodej] * (1 - Fbin) + Z[nodei, nodej],
                     gen_state = labelN.gen_state - Z[nodei, nodej],
                     label_id = label_id_counter
                 )
                 label_id_counter += 1
-                if HybridUAVPlanning.EFF_heap(open_heap, new_label)
+                if EFF_heap(open_list, new_label)
                     update_path_and_gen!(new_label, came_from, gen_track)
                     open_map[new_label.label_id] = push!(open_list, new_label)
-                    if new_label.fcost < fmin*eps #if in range then add to focal
+                    if new_label.fcost <= fmin*eps #if in range then add to focal
                         focal_map[new_label.label_id] = push!(focal_list, new_label)
                     end
                 end
@@ -226,25 +269,26 @@ function label_temporal_focal(env::HybridEnvironment, constraints::HybridConstra
                     gcost = labelN.gcost + C[nodei, nodej],
                     fcost = labelN.gcost + C[nodei, nodej] + hj,
                     hcost = hj,
-                    focal_heuristic = 0,
+                    focal_heuristic = new_focal_heuristic,
+                    node_idx = nodej,
                     state_idx = newstate_idx,
                     prior_state_idx = labelN.state_idx,
                     prior_node_idx = labelN.node_idx,
                     _hold_came_from_prior = labelN.came_from_idx,
-                    came_from_idx = NaN, #fill in later!
+                    came_from_idx = -1, #fill in later!
                     pathlength = labelN.pathlength + 1,
                     _hold_gen_track_prior = labelN.gentrack_idx,
-                    gentrack_idx = NaN, #fill in later!
+                    gentrack_idx = -1, #fill in later!
                     gen_bool = 0,
                     batt_state = labelN.batt_state - C[nodei, nodej] * (1 - Fbin),
                     gen_state = labelN.gen_state,
                     label_id = label_id_counter
                 )
                 label_id_counter += 1
-                if HybridUAVPlanning.EFF_heap(open_heap, new_label)
+                if EFF_heap(open_list, new_label)
                     update_path_and_gen!(new_label, came_from, gen_track)
                     open_map[new_label.label_id] = push!(open_list, new_label)
-                    if new_label.fcost < fmin * eps #if in range then add to focal
+                    if new_label.fcost <= fmin * eps #if in range then add to focal
                         focal_map[new_label.label_id] = push!(focal_list, new_label)
                     end
                 end
