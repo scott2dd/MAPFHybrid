@@ -1,5 +1,3 @@
-
-
 #type this!!!!!!!!!!
 # ********************************
 function update_focal!(old_bound, new_bound, open_list, focal_list, focal_map)
