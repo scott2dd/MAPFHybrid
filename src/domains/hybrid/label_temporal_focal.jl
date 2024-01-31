@@ -1,6 +1,6 @@
 #type this!!!!!!!!!!
 # ********************************
-function update_focal!(old_bound, new_bound, open_list, focal_list, focal_map)
+function update_focal!(old_bound::N, new_bound::N, open_list::MutableBinaryMinHeap{L}, focal_list::MutableBinaryHeap{L, MyLabelFocalCompare}, focal_map::Dict{Int64,Int64}) where {N <: Number, L <: Label}
     for heap_node in open_list.nodes
         label = heap_node.value #get label
         if label.fcost > old_bound && label.fcost <= new_bound
@@ -195,7 +195,7 @@ function label_temporal_focal(env::HybridEnvironment, constraints::HybridConstra
         end
 
         if !isempty(open_list) && fmin * eps < top(open_list).fcost
-            update_focal!(eps*fmin, eps*top(open_list).fcost, open_list, focal_list)
+            update_focal!(eps*fmin, eps*top(open_list).fcost, open_list, focal_list, focal_map)
         end
         z += 1
         z == 200_000 && (printstyled("  ZBREAK@$(z)", color=:light_red); break)
