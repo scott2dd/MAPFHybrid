@@ -9,8 +9,6 @@ function update_focal!(old_bound, new_bound, open_list, focal_list, focal_map)
     end
 end
 
-
-
 # MAIN LABELING FUNCTION
 function label_temporal_focal(env::HybridEnvironment, constraints::HybridConstraints, 
             agent_idx::Int64, initstate::HybridState, goal::Int64, eps::Float64, 
@@ -40,9 +38,9 @@ function label_temporal_focal(env::HybridEnvironment, constraints::HybridConstra
     idx_to_state[1] = (start, 0)
     
     #now init path and gen tracking data
-    came_from = [Vector{Int64}[] for _ in 1:N]
-    push!(came_from[start], [0, 9999])
-    gen_track = [Vector{Int64}[] for _ in 1:N]
+    came_from = [Tuple{Int64, Int64}[] for _ in 1:N]
+    push!(came_from[start], (0, 9999))
+    gen_track = [Tuple{Int64, Int64}[] for _ in 1:N]
 
     #init open list 
     open_list = MutableBinaryMinHeap{MyLabel}()
@@ -205,8 +203,6 @@ function label_temporal_focal(env::HybridEnvironment, constraints::HybridConstra
     end
     return nothing
 end
-
-
 
 
 
