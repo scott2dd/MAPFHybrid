@@ -25,7 +25,7 @@ Base.isless(l1::Label, l2::Label) = (l1.fcost, l1.gcost) < (l2.fcost, l2.gcost)
 #now define lexico ordering for MyLabels for focal heap (used 2 param ordering)
 struct MyLabelFocalCompare <: Base.Order.Ordering end
 Base.lt(o::MyLabelFocalCompare, n1::Label, n2::Label) =
-    (n1.focal_heuristic, n1.fcost) < (n2.focal_heuristic, n2.fcost)
+    (n1.focal_heuristic, n1.fcost, n1.gcost) < (n2.focal_heuristic, n2.fcost, n2.gcost)
 
 
 function EFF_heap(Q::MutableBinaryMinHeap{L}, label_new::L) where L<:Label 
