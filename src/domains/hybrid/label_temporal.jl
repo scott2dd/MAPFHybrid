@@ -61,7 +61,9 @@ function label_temporal(env::HybridEnvironment, constraints::HybridConstraints, 
     Q = MutableBinaryMinHeap{MyLabelImmut}()
     push!(Q, label_init)
 
-
+    
+    P = Dict{Int64, Set{AbbreviatedLabel}}()
+    
     came_from = [Tuple{Int64,Int64}[] for _ in 1:N]
     push!(came_from[start], (0, 9999)) # so we just add a dummy entry to [start]
     gen_track = [Tuple{Int64,Int64}[] for _ in 1:N]  #data struct to track generator patterns 
@@ -73,13 +75,14 @@ function label_temporal(env::HybridEnvironment, constraints::HybridConstraints, 
         isempty(Q) && (printstyled("   Q empty, Z  = $z... \n", color=:light_cyan); break)
         #pull minimum cost label....
         labelN = pop!(Q)
+        !haskey(P, labelN.state_idx) && (P[labelN.state_idx] = Set{AbbreviatedLabel}())
+        push!(P[labelN.state_idx], abbreviated_label(labelN))
         fmin = min(fmin, labelN.fcost)
         
         statei_idx = labelN.state_idx
         statei = idx_to_state[statei_idx]
         nodei = labelN.node_idx
-        # print(nodei, raw" ")
-        # P[statei] = vcat(P[nodei], reshape(label_treated,(1,9)))
+        pathi = get_path(labelN, came_from, start)
         if nodei == goal
             opt_cost = labelN.gcost
             opt_path = get_path(labelN, came_from, start)
@@ -87,22 +90,9 @@ function label_temporal(env::HybridEnvironment, constraints::HybridConstraints, 
             gen = get_gen(labelN, gen_track)
             plan = PlanResult(states=state_seq, actions=actions, cost=Int(floor(opt_cost)), fmin=Int(floor(fmin)), gen=gen)
             return plan
-            # label_copy = deepcopy(label_treated) #make copy with nodes instead of state idxs to backtrack path and state
-            # node = idx_to_state[label_copy[4]][1]
-            # prior_node = idx_to_state[label_copy[5]][1]
-            # label_copy[4], label_copy[5] = node, prior_node
-            # opt_path = HybridUAVPlanning.get_path(label_copy, came_from, start)
-            # state_seq, actions = get_state_path(opt_path, initstate, def.C)
-            # gen = HybridUAVPlanning.get_gen(label_treated, gen_track)
         end
 
-        # label_copy = deepcopy(label_treated) #make copy with nodes instead of state idxs to backtrack path and state
-        # prior_state = idx_to_state[label_copy[5]]
-        # prior_node = prior_state[1]
-        # label_copy[4], label_copy[5] = nodei, prior_node #switch to node, rather than state, just for path getting
-        # pathi = HybridUAVPlanning.get_path(label_copy, came_from, start)
-        pathi = get_path(labelN, came_from, start)
-        nodei = labelN.node_idx
+        
         for nodej in Alist[nodei]
             nodej == nodei && continue
             nodej ∈ pathi && continue
@@ -132,7 +122,6 @@ function label_temporal(env::HybridEnvironment, constraints::HybridConstraints, 
             #GEN ON
             new_batt_state = labelN.batt_state - C[nodei, nodej] * (1 - Fbin) + Z[nodei, nodej]
             new_gen_state = labelN.gen_state - Z[nodei, nodej]
-            # if def.GFlipped[nodei, nodej] == 0 && label_treated[2] - C[nodei, nodej] * (1 - Fbin) + Z[nodei, nodej] >= 0 && label_treated[3] - Z[nodei, nodej] >= 0 && label_treated[2] - C[nodei, nodej] + Z[nodei, nodej] <= Bmax
             if def.GFlipped[nodei, nodej] == 0 && new_batt_state >= 0 && new_gen_state >= 0 && new_batt_state <= Bmax
                 temp_new_label = MyLabelImmut(
                     gcost = labelN.gcost + C[nodei, nodej],
@@ -149,13 +138,13 @@ function label_temporal(env::HybridEnvironment, constraints::HybridConstraints, 
                     _hold_gen_track_prior = labelN.gentrack_idx,
                     gentrack_idx = -1,  #fill in later!
                     gen_bool = 1,
-                    batt_state = labelN.batt_state - C[nodei, nodej] * (1 - Fbin) + Z[nodei, nodej],
-                    gen_state = labelN.gen_state - Z[nodei, nodej],
+                    batt_state = new_batt_state,
+                    gen_state = new_gen_state,
                     label_id = label_id_counter
                 )
                 label_id_counter += 1
 
-                if EFF_heap(Q, temp_new_label)
+                if EFF_heap(Q, temp_new_label) && (!haskey(P, newstate_idx) || EFF_P(P[newstate_idx], abbreviated_label(temp_new_label))) #if no key, will not call EFF_P (short circuit) so we don't need to worry about P[newstate_idx] being empty! as it won't be called in that case
                     new_label = update_path_and_gen!(temp_new_label, came_from, gen_track)
                     push!(Q, new_label)
                 end
@@ -183,7 +172,7 @@ function label_temporal(env::HybridEnvironment, constraints::HybridConstraints, 
                     gen_state = labelN.gen_state,
                     label_id = label_id_counter
                 )
-                if EFF_heap(Q, temp_new_label)
+                if EFF_heap(Q, temp_new_label) && (!haskey(P, newstate_idx) || EFF_P(P[newstate_idx], abbreviated_label(temp_new_label))) #see above comment about short circuit
                     new_label = update_path_and_gen!(temp_new_label, came_from, gen_track)
                     push!(Q, new_label)
                 end
