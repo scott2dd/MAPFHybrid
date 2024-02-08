@@ -1,5 +1,3 @@
-abstract type Label end
-
 @kwdef struct MyLabelImmut <: Label
     gcost::Float64
     fcost::Float64
@@ -20,6 +18,7 @@ abstract type Label end
     label_id::Int64
 end
 
+#isless is defined in HybridUAVPlanning.struct_defs... but we can rewrite here for our own specific ordering!
 Base.isless(l1::Label, l2::Label) = (l1.fcost, l1.gcost) < (l2.fcost, l2.gcost)
 
 #now define lexico ordering for MyLabels for focal heap (used 2 param ordering)
@@ -28,6 +27,7 @@ Base.lt(o::MyLabelFocalCompare, n1::Label, n2::Label) =
     (n1.focal_heuristic, n1.fcost, n1.gcost) < (n2.focal_heuristic, n2.fcost, n2.gcost)
 
 
+# We must redefine EFF_heap -> becuase we need to look at state_idx for comparisons rather than node_idx.....
 function EFF_heap(Q::MutableBinaryMinHeap{L}, label_new::L) where L<:Label 
     isempty(Q) && (return true)
     node_map_copy = Q.node_map
@@ -40,37 +40,37 @@ function EFF_heap(Q::MutableBinaryMinHeap{L}, label_new::L) where L<:Label
     return true #if all this passes, then return true (is efficient)
 end
 
+#remove these later.... just commeting out before deleting in case we need them.....
+# function get_path(label::Label, came_from::Vector{Vector{Tuple{Int64,Int64}}}, start::Int64)
+#     path = Int64[]
+#     here = label.node_idx
+#     cf_idx_here = label.came_from_idx
 
-function get_path(label::Label, came_from::Vector{Vector{Tuple{Int64,Int64}}}, start::Int64)
-    path = Int64[]
-    here = label.node_idx
-    cf_idx_here = label.came_from_idx
+#     here == start && return [start]
+#     push!(path, here)
+#     while here != start
+#         next = came_from[here][cf_idx_here][1]
+#         cf_idx_next = came_from[here][cf_idx_here][2]
 
-    here == start && return [start]
-    push!(path, here)
-    while here != start
-        next = came_from[here][cf_idx_here][1]
-        cf_idx_next = came_from[here][cf_idx_here][2]
-
-        push!(path, next)
-        here = copy(next)
-        cf_idx_here = copy(cf_idx_next)
-    end
-    return reverse(path)
-end
-function get_gen(label::Label, gen_track::Vector{Vector{Tuple{Int64,Int64}}})
-    #get generator pattern from recursive data struct
-    genOut = Bool[]
-    PL = label.pathlength #path length of tracked label (in # of nodes) ... so if PL=1 then no edges, 
-    gt_idx = label.gentrack_idx #index for gen_track
-    while PL > 1
-        gen_now = gen_track[PL][gt_idx][1]
-        push!(genOut, gen_now)
-        gt_idx = gen_track[PL][gt_idx][2]
-        PL -= 1
-    end
-    return reverse(genOut)
-end
+#         push!(path, next)
+#         here = copy(next)
+#         cf_idx_here = copy(cf_idx_next)
+#     end
+#     return reverse(path)
+# end
+# function get_gen(label::Label, gen_track::Vector{Vector{Tuple{Int64,Int64}}})
+#     #get generator pattern from recursive data struct
+#     genOut = Bool[]
+#     PL = label.pathlength #path length of tracked label (in # of nodes) ... so if PL=1 then no edges, 
+#     gt_idx = label.gentrack_idx #index for gen_track
+#     while PL > 1
+#         gen_now = gen_track[PL][gt_idx][1]
+#         push!(genOut, gen_now)
+#         gt_idx = gen_track[PL][gt_idx][2]
+#         PL -= 1
+#     end
+#     return reverse(genOut)
+# end
 
 
 function update_path_and_gen!(new_label::MyLabelImmut, came_from::Vector{Vector{Tuple{Int64,Int64}}}, gen_track::Vector{Vector{Tuple{Int64,Int64}}})
@@ -169,6 +169,9 @@ end
 
 
 ## END OF MY ADDED CODE !
+
+
+
 """
     PlanResult{S <: MAPFState, A <: MAPFAction, C <: Number}
 
