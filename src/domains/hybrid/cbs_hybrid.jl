@@ -196,7 +196,7 @@ function low_level_search!(solver::CBSSolver, agent_idx::Int64, s::HybridState, 
     tastar = @elapsed _ = a_star_implicit_shortest_path!(env.state_graph, env, s, agent_idx, constraints)
     # Return empty solution
     if plan_result == nothing
-        return nothing, tlabel
+        return PlanResult{HybridState,HybridAction,Int64}(), tlabel, tastar #empty tuple
     end
 
     return plan_result, tlabel, tastar

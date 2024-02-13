@@ -146,7 +146,7 @@ function search!(solver::CBSSolver{S,A,C,HC,F,CNR,E}, initial_states::Vector{S};
 
 
                 # Only create new node if we found a solution
-                if new_solution != nothing #nothing if Zbreak, no path to goal, or Q empty...
+                if !iesmpty(new_solution)  #nothing if Zbreak, no path to goal, or Q empty...
 
                     new_node.solution[i] = new_solution
                     new_node.cost = accumulate_cost(solver.hlcost, new_node.cost, new_solution.cost)
