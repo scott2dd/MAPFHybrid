@@ -1,5 +1,3 @@
-#type this!!!!!!!!!!
-# ********************************
 function update_focal!(old_bound::N, new_bound::N, open_list::MutableBinaryMinHeap{L}, focal_list::MutableBinaryHeap{L, MyLabelFocalCompare}, focal_map::Dict{Int64,Int64}) where {N <: Number, L <: Label}
     for heap_node in open_list.nodes
         label = heap_node.value #get label
@@ -46,6 +44,7 @@ function label_temporal_focal(env::HybridEnvironment, constraints::HybridConstra
     #init open list 
     open_list = MutableBinaryMinHeap{MyLabelImmut}()
     focal_list = MutableBinaryHeap{MyLabelImmut, MyLabelFocalCompare}()
+    P = Dict{Int64,Set{AbbreviatedLabel}}() #perm label list
 
     open_map, focal_map = Dict{Int64,Int64}(), Dict{Int64,Int64}()
 
@@ -153,7 +152,7 @@ function label_temporal_focal(env::HybridEnvironment, constraints::HybridConstra
                     label_id = label_id_counter
                 )
                 label_id_counter += 1
-                if EFF_heap(open_list, temp_new_label)
+                if EFF_heap(open_list, temp_new_label) && (!haskey(P, newstate_idx) || EFF_P(P[newstate_idx], abbreviated_label(temp_new_label))) #short circuit logic
                     new_label = update_path_and_gen!(temp_new_label, came_from, gen_track)
                     open_map[new_label.label_id] = push!(open_list, new_label)
                     if new_label.fcost <= fmin*eps #if in range then add to focal
@@ -185,7 +184,7 @@ function label_temporal_focal(env::HybridEnvironment, constraints::HybridConstra
                     label_id = label_id_counter
                 )
                 label_id_counter += 1
-                if EFF_heap(open_list, temp_new_label)
+                if EFF_heap(open_list, temp_new_label) && (!haskey(P, newstate_idx) || EFF_P(P[newstate_idx], abbreviated_label(temp_new_label))) #short circuit logic
                     new_label = update_path_and_gen!(temp_new_label, came_from, gen_track)
                     open_map[new_label.label_id] = push!(open_list, new_label)
                     if new_label.fcost <= fmin * eps #if in range then add to focal
