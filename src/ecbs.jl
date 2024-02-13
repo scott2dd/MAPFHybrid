@@ -141,7 +141,7 @@ function search!(solver::ECBSSolver{S,A,C,HC,F,CNR,E}, initial_states::Vector{S}
                 push!(times_subroutine, tlabel)
                 push!(times_astar, tastar)
 
-                if ~(isempty(new_solution))
+                if ~(isempty(new_solution)) #if empty, then just don't add to tree!
 
                     # Can enter a new node.  As stated above, this is 2-agent conf, replanned i. So can call low level search on i, and j will use parent node's solution.  i.e, call low_search once (per this loop)
                     new_node.id = id

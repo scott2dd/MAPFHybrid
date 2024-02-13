@@ -1,4 +1,4 @@
-@kwdef mutable struct MyLabel
+@kwdef struct MyLabelImmut <: Label
     gcost::Float64
     fcost::Float64
     hcost::Float64
@@ -18,16 +18,17 @@
     label_id::Int64
 end
 
-#now define isless for MyLabels, for ordering in a heap
-Base.isless(l1::MyLabel, l2::MyLabel) = l1.fcost < l2.fcost
+#isless is defined in HybridUAVPlanning.struct_defs... but we can rewrite here for our own specific ordering!
+Base.isless(l1::Label, l2::Label) = (l1.fcost, l1.gcost) < (l2.fcost, l2.gcost)
 
 #now define lexico ordering for MyLabels for focal heap (used 2 param ordering)
 struct MyLabelFocalCompare <: Base.Order.Ordering end
-Base.lt(o::MyLabelFocalCompare, n1::MyLabel, n2::MyLabel) =
-    (n1.focal_heuristic, n1.fcost) < (n2.focal_heuristic, n2.fcost)
+Base.lt(o::MyLabelFocalCompare, n1::Label, n2::Label) =
+    (n1.focal_heuristic, n1.fcost, n1.gcost) < (n2.focal_heuristic, n2.fcost, n2.gcost)
 
 
-function EFF_heap(Q::MutableBinaryMinHeap{MyLabel}, label_new::MyLabel)
+# We must redefine EFF_heap -> becuase we need to look at state_idx for comparisons rather than node_idx.....
+function EFF_heap(Q::MutableBinaryMinHeap{L}, label_new::L) where L<:Label 
     isempty(Q) && (return true)
     node_map_copy = Q.node_map
     for k in 1:length(node_map_copy)
@@ -39,45 +40,114 @@ function EFF_heap(Q::MutableBinaryMinHeap{MyLabel}, label_new::MyLabel)
     return true #if all this passes, then return true (is efficient)
 end
 
-function get_path(label::MyLabel, came_from::Vector{Vector{Vector{Int64}}}, start::Int64)
-    path = Int64[]
-    here = label.node_idx
-    cf_idx_here = label.came_from_idx
+#remove these later.... just commeting out before deleting in case we need them.....
+# function get_path(label::Label, came_from::Vector{Vector{Tuple{Int64,Int64}}}, start::Int64)
+#     path = Int64[]
+#     here = label.node_idx
+#     cf_idx_here = label.came_from_idx
 
-    here == start && return [start]
-    push!(path, here)
-    while here != start
-        next = came_from[here][cf_idx_here][1]
-        cf_idx_next = came_from[here][cf_idx_here][2]
+#     here == start && return [start]
+#     push!(path, here)
+#     while here != start
+#         next = came_from[here][cf_idx_here][1]
+#         cf_idx_next = came_from[here][cf_idx_here][2]
 
-        push!(path, next)
-        here = copy(next)
-        cf_idx_here = copy(cf_idx_next)
-    end
-    return reverse(path)
-end
-function get_gen(label::MyLabel, gen_track::Vector{Vector{Vector{Int64}}})
-    #get generator pattern from recursive data struct
-    genOut = Bool[]
-    PL = label.pathlength #path length of tracked label (in # of nodes) ... so if PL=1 then no edges, 
-    gt_idx = label.gentrack_idx #index for gen_track
-    while PL > 1
-        gen_now = gen_track[PL][gt_idx][1]
-        push!(genOut, gen_now)
-        gt_idx = gen_track[PL][gt_idx][2]
-        PL -= 1
-    end
-    return reverse(genOut)
-end
+#         push!(path, next)
+#         here = copy(next)
+#         cf_idx_here = copy(cf_idx_next)
+#     end
+#     return reverse(path)
+# end
+# function get_gen(label::Label, gen_track::Vector{Vector{Tuple{Int64,Int64}}})
+#     #get generator pattern from recursive data struct
+#     genOut = Bool[]
+#     PL = label.pathlength #path length of tracked label (in # of nodes) ... so if PL=1 then no edges, 
+#     gt_idx = label.gentrack_idx #index for gen_track
+#     while PL > 1
+#         gen_now = gen_track[PL][gt_idx][1]
+#         push!(genOut, gen_now)
+#         gt_idx = gen_track[PL][gt_idx][2]
+#         PL -= 1
+#     end
+#     return reverse(genOut)
+# end
 
-function update_path_and_gen!(new_label::MyLabel, came_from::Vector{Vector{Vector{Int64}}}, gen_track::Vector{Vector{Vector{Int64}}})
+
+function update_path_and_gen!(new_label::MyLabelImmut, came_from::Vector{Vector{Tuple{Int64,Int64}}}, gen_track::Vector{Vector{Tuple{Int64,Int64}}})
     #correct path...
     pnode = new_label.prior_node_idx
     nextnode = new_label.node_idx
     p_came_from_idx = new_label._hold_came_from_prior
     path_pointer = findall(x -> x == [pnode, p_came_from_idx], came_from[nextnode])
     if isempty(path_pointer) #if no other label has used this same path...
-        push!(came_from[nextnode], [pnode, p_came_from_idx])
+        push!(came_from[nextnode], (pnode, p_came_from_idx))
+        came_from_idx = length(came_from[nextnode])
+    else #if path exists prior, then we use the (nonempty) pointer
+        pointer_idx = path_pointer[1]
+        came_from_idx = pointer_idx #label now has index for came_from 
+    end
+
+    #correct gen....
+    PL = new_label.pathlength
+    gen_pointer = findall(x -> x == [new_label.gen_bool, new_label._hold_gen_track_prior], gen_track[new_label.pathlength])
+    if isempty(gen_pointer)
+        push!(gen_track[PL], (new_label.gen_bool, new_label._hold_gen_track_prior))
+        gentrack_idx = length(gen_track[PL])
+    else
+        pointer_idx = gen_pointer[1]
+        gentrack_idx = pointer_idx #label now has index for gen_track
+    end
+
+    label_updated = MyLabelImmut(
+        gcost=new_label.gcost,
+        fcost=new_label.fcost,
+        hcost=new_label.hcost,
+        focal_heuristic=new_label.focal_heuristic,
+        state_idx=new_label.state_idx,
+        node_idx=new_label.node_idx,
+        prior_state_idx=new_label.prior_state_idx,
+        prior_node_idx=new_label.prior_node_idx,
+        _hold_came_from_prior=new_label._hold_came_from_prior,
+        came_from_idx=came_from_idx,
+        pathlength=new_label.pathlength,
+        _hold_gen_track_prior=new_label._hold_gen_track_prior,
+        gentrack_idx=gentrack_idx,
+        gen_bool=new_label.gen_bool,
+        batt_state=new_label.batt_state,
+        gen_state=new_label.gen_state,
+        label_id=new_label.label_id
+    )
+    return label_updated
+end
+
+
+@kwdef mutable struct MyLabel <: Label
+    gcost::Float64
+    fcost::Float64
+    hcost::Float64
+    focal_heuristic::Float64
+    state_idx::Int64
+    node_idx::Int64
+    prior_state_idx::Int64
+    prior_node_idx::Int64
+    _hold_came_from_prior::Int64
+    came_from_idx::Int64
+    pathlength::Int64
+    _hold_gen_track_prior::Int64
+    gentrack_idx::Int64
+    gen_bool::Int64 #on/off to get to this state (prior edge)
+    batt_state::Float64
+    gen_state::Float64
+    label_id::Int64
+end
+function update_path_and_gen!(new_label::MyLabel, came_from::Vector{Vector{Tuple{Int64,Int64}}}, gen_track::Vector{Vector{Tuple{Int64,Int64}}})
+    #correct path...
+    pnode = new_label.prior_node_idx
+    nextnode = new_label.node_idx
+    p_came_from_idx = new_label._hold_came_from_prior
+    path_pointer = findall(x -> x == [pnode, p_came_from_idx], came_from[nextnode])
+    if isempty(path_pointer) #if no other label has used this same path...
+        push!(came_from[nextnode], (pnode, p_came_from_idx))
         new_label.came_from_idx = length(came_from[nextnode])
     else #if path exists prior, then we use the (nonempty) pointer
         pointer_idx = path_pointer[1]
@@ -88,7 +158,7 @@ function update_path_and_gen!(new_label::MyLabel, came_from::Vector{Vector{Vecto
     PL = new_label.pathlength
     gen_pointer = findall(x -> x == [new_label.gen_bool, new_label._hold_gen_track_prior], gen_track[new_label.pathlength])
     if isempty(gen_pointer)
-        push!(gen_track[PL], [new_label.gen_bool, new_label._hold_gen_track_prior])
+        push!(gen_track[PL], (new_label.gen_bool, new_label._hold_gen_track_prior))
         new_label.gentrack_idx = length(gen_track[PL])
     else
         pointer_idx = gen_pointer[1]
@@ -99,6 +169,9 @@ end
 
 
 ## END OF MY ADDED CODE !
+
+
+
 """
     PlanResult{S <: MAPFState, A <: MAPFAction, C <: Number}
 

@@ -1,17 +1,12 @@
-
-
-#type this!!!!!!!!!!
-# ********************************
-function update_focal!(old_bound, new_bound, open_list, focal_list, focal_map)
+function update_focal!(old_bound::N, new_bound::N, open_list::MutableBinaryMinHeap{L}, focal_list::MutableBinaryHeap{L, MyLabelFocalCompare}, focal_map::Dict{Int64,Int64}) where {N <: Number, L <: Label}
     for heap_node in open_list.nodes
         label = heap_node.value #get label
         if label.fcost > old_bound && label.fcost <= new_bound
-            focal_map[label.label_id] = focal_list = push!(focal_list, label)
+            map_val = push!(focal_list, label)
+            focal_map[label.label_id] = map_val
         end
     end
 end
-
-
 
 # MAIN LABELING FUNCTION
 function label_temporal_focal(env::HybridEnvironment, constraints::HybridConstraints, 
@@ -42,18 +37,19 @@ function label_temporal_focal(env::HybridEnvironment, constraints::HybridConstra
     idx_to_state[1] = (start, 0)
     
     #now init path and gen tracking data
-    came_from = [Vector{Int64}[] for _ in 1:N]
-    push!(came_from[start], [0, 9999])
-    gen_track = [Vector{Int64}[] for _ in 1:N]
+    came_from = [Tuple{Int64, Int64}[] for _ in 1:N]
+    push!(came_from[start], (0, 9999))
+    gen_track = [Tuple{Int64, Int64}[] for _ in 1:N]
 
     #init open list 
-    open_list = MutableBinaryMinHeap{MyLabel}()
-    focal_list = MutableBinaryHeap{MyLabel, MyLabelFocalCompare}()
+    open_list = MutableBinaryMinHeap{MyLabelImmut}()
+    focal_list = MutableBinaryHeap{MyLabelImmut, MyLabelFocalCompare}()
+    P = Dict{Int64,Set{AbbreviatedLabel}}() #perm label list
 
     open_map, focal_map = Dict{Int64,Int64}(), Dict{Int64,Int64}()
 
     label_id_counter = 1
-    init_label = MyLabel(
+    init_label = MyLabelImmut(
         batt_state=Bstart, 
         gen_state=Qstart, 
         gcost=0, 
@@ -136,7 +132,7 @@ function label_temporal_focal(env::HybridEnvironment, constraints::HybridConstra
             new_batt_state = labelN.batt_state - C[nodei, nodej]*(1 - Fbin) + Z[nodei, nodej]
             new_gen_state = labelN.gen_state - Z[nodei, nodej]
             if def.GFlipped[nodei, nodej] == 0 && new_batt_state >= 0 && new_gen_state >= 0 && new_batt_state <= Bmax
-                new_label = MyLabel(
+                temp_new_label = MyLabelImmut(
                     gcost = labelN.gcost + C[nodei, nodej],
                     fcost = labelN.gcost + C[nodei, nodej] + hj,
                     hcost = hj,
@@ -156,8 +152,8 @@ function label_temporal_focal(env::HybridEnvironment, constraints::HybridConstra
                     label_id = label_id_counter
                 )
                 label_id_counter += 1
-                if EFF_heap(open_list, new_label)
-                    update_path_and_gen!(new_label, came_from, gen_track)
+                if EFF_heap(open_list, temp_new_label) && (!haskey(P, newstate_idx) || EFF_P(P[newstate_idx], abbreviated_label(temp_new_label))) #short circuit logic
+                    new_label = update_path_and_gen!(temp_new_label, came_from, gen_track)
                     open_map[new_label.label_id] = push!(open_list, new_label)
                     if new_label.fcost <= fmin*eps #if in range then add to focal
                         focal_map[new_label.label_id] = push!(focal_list, new_label)
@@ -168,7 +164,7 @@ function label_temporal_focal(env::HybridEnvironment, constraints::HybridConstra
             #GEN OFF
             new_batt_state = labelN.batt_state - C[nodei, nodej]*(1 - Fbin)            
             if new_batt_state >= 0
-                new_label = MyLabel(
+                temp_new_label = MyLabelImmut(
                     gcost = labelN.gcost + C[nodei, nodej],
                     fcost = labelN.gcost + C[nodei, nodej] + hj,
                     hcost = hj,
@@ -188,8 +184,8 @@ function label_temporal_focal(env::HybridEnvironment, constraints::HybridConstra
                     label_id = label_id_counter
                 )
                 label_id_counter += 1
-                if EFF_heap(open_list, new_label)
-                    update_path_and_gen!(new_label, came_from, gen_track)
+                if EFF_heap(open_list, temp_new_label) && (!haskey(P, newstate_idx) || EFF_P(P[newstate_idx], abbreviated_label(temp_new_label))) #short circuit logic
+                    new_label = update_path_and_gen!(temp_new_label, came_from, gen_track)
                     open_map[new_label.label_id] = push!(open_list, new_label)
                     if new_label.fcost <= fmin * eps #if in range then add to focal
                         focal_map[new_label.label_id] = push!(focal_list, new_label)
@@ -199,7 +195,7 @@ function label_temporal_focal(env::HybridEnvironment, constraints::HybridConstra
         end
 
         if !isempty(open_list) && fmin * eps < top(open_list).fcost
-            update_focal!(eps*fmin, eps*top(open_list).fcost, open_list, focal_list)
+            update_focal!(eps*fmin, eps*top(open_list).fcost, open_list, focal_list, focal_map)
         end
         z += 1
         z == 200_000 && (printstyled("  ZBREAK@$(z)", color=:light_red); break)
@@ -207,8 +203,6 @@ function label_temporal_focal(env::HybridEnvironment, constraints::HybridConstra
     end
     return nothing
 end
-
-
 
 
 
