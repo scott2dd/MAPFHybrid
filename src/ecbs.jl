@@ -117,7 +117,6 @@ function search!(solver::ECBSSolver{S,A,C,HC,F,CNR,E}, initial_states::Vector{S}
         if conflict == nothing
             return focal_entry, id, times_subroutine, times_astar
         elseif time() - time_start > time_lim
-            println("time limit reached")
             focal_entry.cost = -1
             return focal_entry, id, times_subroutine, times_astar
         end
