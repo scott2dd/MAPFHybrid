@@ -95,10 +95,11 @@ function low_level_search!(solver::ECBSSolver, agent_idx::Int64, statei::HybridS
 
     # Run the search 
     goali = env.goals[agent_idx]
-    plan_result = label_temporal_focal(env, constraints, agent_idx, statei, goali, solver.weight, focal_state_heuristic, focal_transition_heuristic)  
+    tlabel = @elapsed plan_result = label_temporal_focal(env, constraints, agent_idx, statei, goali, solver.weight, focal_state_heuristic, focal_transition_heuristic)  
+    tastar = @elapsed _ = a_star_implicit_shortest_path!(env.state_graph, env, s, agent_idx, constraints)
     
     if plan_result == nothing
-        return PlanResult{HybridState,HybridAction,Int64}(), 0.0, 0.0
+        return PlanResult{HybridState,HybridAction,Int64}(), tlabel, tastar
     end
 
     return plan_result, 0.0, 0.0
