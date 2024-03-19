@@ -120,7 +120,7 @@ function search!(solver::CBSSolver{S,A,C,HC,F,CNR,E}, initial_states::Vector{S};
         
         if conflict == nothing #If no conflict, we are done as this is best node in tree
             return P,id, times_subroutine, times_astar
-        elseif time() - time_start > time_lim
+        elseif time() - time_start > time_lim && id > 1
             P.cost = -1
             return P, id, times_subroutine, times_astar
         end
