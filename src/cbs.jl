@@ -103,7 +103,7 @@ function search!(solver::CBSSolver{S,A,C,HC,F,CNR,E}, initial_states::Vector{S};
         # println("new solution for $(idx): ", new_solution)
         # Return empty solution if cannot find
         if isempty(new_solution)
-            return Vector{PlanResult{S,A,C}}(undef, 0)
+            return start, 1, times_subroutine, times_astar
         end
 
         start.solution[idx] = new_solution
@@ -158,6 +158,8 @@ function search!(solver::CBSSolver{S,A,C,HC,F,CNR,E}, initial_states::Vector{S};
     end
 
     #If no nodes left to expand, then return an empty solution
-    return Vector{PlanResult{S,A,C}}(undef, 0)
+    blanknode = CBSHighLevelNode{S,A,C,CNR}()
+    blanknode.cost = -2 #flag to indicate no solution found
+    return blanknode, id, times_subroutine, times_astar
 
 end
