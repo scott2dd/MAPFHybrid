@@ -72,7 +72,7 @@ function label_temporal(env::HybridEnvironment, constraints::HybridConstraints, 
     fmin = Inf
     z = 0
     while true #loop until get to end node, or Q is empty
-        isempty(Q) && (printstyled("   Q empty, Z  = $z... \n", color=:light_cyan); break)
+        isempty(Q) && break # (printstyled("   Q empty, Z  = $z... \n", color=:light_cyan); break)
         #pull minimum cost label....
         labelN = pop!(Q)
         !haskey(P, labelN.state_idx) && (P[labelN.state_idx] = Set{AbbreviatedLabel}())
