@@ -75,7 +75,7 @@ function label_temporal_focal(env::HybridEnvironment, constraints::HybridConstra
     fmin = Inf
     z = 0
     while true #loop until get to end node, or open_list is empty
-        isempty(open_list) && (printstyled("open set empty, Z  = $z... \n", color=:light_cyan); break)
+        isempty(open_list) && break #(printstyled("open set empty, Z  = $z... \n", color=:light_cyan); break)
         fmin = top(open_list).fcost #keep to return for high level FOCAL
         
         labelN = top(focal_list) #top of focal_list
